@@ -98,13 +98,13 @@ void UGravityEntityComponent::InitializeEntity()
 	DisplayPositions.SetNum(Nodes.Num());
 
 	const FVector Origin = GetOwner() ? GetOwner()->GetActorLocation() : FVector::ZeroVector;
-	if (UGravityWormMovementSolver* S = Cast<UGravityWormMovementSolver>(Profile->MovementSolver))
+	if (UGravityWormMovementSolver* WormS = Cast<UGravityWormMovementSolver>(Profile->MovementSolver))
 	{
-		S->SetSpawnOrigin(Origin);
+		WormS->SetSpawnOrigin(Origin);
 	}
-	else if (UGravityOrbitalMovementSolver* S = Cast<UGravityOrbitalMovementSolver>(Profile->MovementSolver))
+	else if (UGravityOrbitalMovementSolver* OrbS = Cast<UGravityOrbitalMovementSolver>(Profile->MovementSolver))
 	{
-		S->SetSpawnOrigin(Origin);
+		OrbS->SetSpawnOrigin(Origin);
 	}
 
 	RebuildISMInstances();
