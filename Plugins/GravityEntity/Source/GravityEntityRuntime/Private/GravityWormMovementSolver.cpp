@@ -34,7 +34,7 @@ void UGravityWormMovementSolver::UpdateLocomotionTarget(float DeltaTime)
 	if (Dist > WanderRadius)
 	{
 		float ReturnAngle = FMath::Atan2(ToSpawn.Y, ToSpawn.X);
-		float Delta       = FMath::FindDeltaAngle(HeadingAngle, ReturnAngle);
+		float Delta       = FMath::Fmod(ReturnAngle - HeadingAngle + UE_PI, UE_TWO_PI) - UE_PI;
 		HeadingAngle     += Delta * FMath::Clamp((Dist - WanderRadius) / WanderRadius, 0.f, 1.f) * DeltaTime * 2.f;
 	}
 
