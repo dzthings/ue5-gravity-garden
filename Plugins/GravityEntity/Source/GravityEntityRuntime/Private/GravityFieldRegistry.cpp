@@ -1,11 +1,6 @@
 #include "GravityFieldRegistry.h"
 #include "GravityFloraMovementSolver.h"
 
-void UGravityFieldRegistry::OnWorldBeginPlay(UWorld& InWorld)
-{
-	Super::OnWorldBeginPlay(InWorld);
-}
-
 void UGravityFieldRegistry::BroadcastFaunaPositions(const TArray<FVector>& NodePositions)
 {
 	AccumulatedPositions.Append(NodePositions);

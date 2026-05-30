@@ -10,7 +10,7 @@ class UGravityFloraMovementSolver;
 // Fauna components register their node arrays; flora solvers query positions
 // within their attraction radius without needing direct cross-actor references.
 UCLASS()
-class GRAVITYENTITYRUNTIME_API UGravityFieldRegistry : public UWorldSubsystem
+class GRAVITYENTITYRUNTIME_API UGravityFieldRegistry : public UTickableWorldSubsystem
 {
 	GENERATED_BODY()
 
@@ -22,12 +22,10 @@ public:
 	void RegisterFloraReceiver(UGravityFloraMovementSolver* Solver);
 	void UnregisterFloraReceiver(UGravityFloraMovementSolver* Solver);
 
+	virtual void Tick(float DeltaTime) override;
+	virtual TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(UGravityFieldRegistry, STATGROUP_Tickables); }
+
 private:
 	TArray<TWeakObjectPtr<UGravityFloraMovementSolver>> FloraReceivers;
 	TArray<FVector> AccumulatedPositions;
-
-	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
-	virtual void Tick(float DeltaTime) override;
-	virtual bool IsTickable() const override { return true; }
-	virtual TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(UGravityFieldRegistry, STATGROUP_Tickables); }
 };
