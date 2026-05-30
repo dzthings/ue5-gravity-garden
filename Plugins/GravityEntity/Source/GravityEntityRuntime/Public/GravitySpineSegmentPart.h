@@ -28,6 +28,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Shape", meta = (ClampMin = "1", ClampMax = "8"))
 	int32 HemisphereSteps = 3;
 
-	virtual void   GenerateMesh(UDynamicMesh* TargetMesh) override;
+	virtual void   GenerateMeshData(TArray<FVector>& OutVerts, TArray<int32>& OutTris,
+	                                TArray<FVector>& OutNormals, TArray<FVector2D>& OutUVs) override;
 	virtual uint32 GetParamHash() const override;
 };

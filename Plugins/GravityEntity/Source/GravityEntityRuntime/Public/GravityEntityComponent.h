@@ -8,10 +8,10 @@
 class UGravityEntityProfile;
 class UGravityStateChannels;
 class UGravityPartCache;
-class UDynamicMeshComponent;
+class UProceduralMeshComponent;
 
 // Drives entity simulation: owns nodes/links, ticks solvers, owns state channels.
-// Renders nodes via UDynamicMeshComponent (one per node) with Geometry Script shapes,
+// Renders nodes via UProceduralMeshComponent (one per node) with hand-computed shapes,
 // and link tubes (one per link). Both use CustomPrimitiveData[0] for per-primitive glow.
 UCLASS(ClassGroup = "GravityEntity", meta = (BlueprintSpawnableComponent))
 class GRAVITYENTITYRUNTIME_API UGravityEntityComponent : public UActorComponent
@@ -21,11 +21,9 @@ class GRAVITYENTITYRUNTIME_API UGravityEntityComponent : public UActorComponent
 public:
 	UGravityEntityComponent();
 
-	// The variant — describes topology, motion, parts, material, and breath.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GravityEntity")
 	TObjectPtr<UGravityEntityProfile> Profile;
 
-	// Live state signals written each tick.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GravityEntity|State")
 	TObjectPtr<UGravityStateChannels> StateChannels;
 
@@ -33,12 +31,11 @@ public:
 	TArray<FGravityLink> Links;
 	TArray<FVector>      DisplayPositions;
 
-	// --- Rendering ---
 	// Material applied to node meshes. Must use CustomPrimitiveData node (index 0) for glow.
 	UPROPERTY(EditAnywhere, Category = "GravityEntity|Rendering")
 	TObjectPtr<UMaterialInterface> NodeMaterial;
 
-	// Material applied to link tubes. Defaults to NodeMaterial if unset.
+	// Material applied to link tubes. Falls back to NodeMaterial if unset.
 	UPROPERTY(EditAnywhere, Category = "GravityEntity|Rendering")
 	TObjectPtr<UMaterialInterface> LinkMaterial;
 
@@ -69,10 +66,10 @@ private:
 	TObjectPtr<UGravityPartCache> PartCache;
 
 	UPROPERTY()
-	TArray<TObjectPtr<UDynamicMeshComponent>> NodeMeshComponents;
+	TArray<TObjectPtr<UProceduralMeshComponent>> NodeMeshComponents;
 
 	UPROPERTY()
-	TArray<TObjectPtr<UDynamicMeshComponent>> LinkMeshComponents;
+	TArray<TObjectPtr<UProceduralMeshComponent>> LinkMeshComponents;
 
 	void InitializeEntity();
 	void DestroyMeshComponents();

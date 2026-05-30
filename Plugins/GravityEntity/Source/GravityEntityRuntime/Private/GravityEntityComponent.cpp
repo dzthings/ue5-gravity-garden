@@ -9,9 +9,7 @@
 #include "GravityMaterialProfile.h"
 #include "GravityWormMovementSolver.h"
 #include "GravityOrbitalMovementSolver.h"
-#include "Components/DynamicMeshComponent.h"
-#include "UDynamicMesh.h"
-#include "GeometryScript/MeshPrimitiveFunctions.h"
+#include "ProceduralMeshComponent.h"
 #include "DrawDebugHelpers.h"
 #include "HAL/IConsoleManager.h"
 
@@ -20,11 +18,76 @@
 // ---------------------------------------------------------------------------
 static TAutoConsoleVariable<int32> CVarDrawLinks(
 	TEXT("ge.Debug.DrawLinks"), 0,
-	TEXT("Draw field links as debug lines (1=on; link tubes are rendered by default)."), ECVF_Default);
+	TEXT("Overlay debug link lines (1=on; tube meshes are rendered by default)."), ECVF_Default);
 
 static TAutoConsoleVariable<int32> CVarLogChannels(
 	TEXT("ge.Debug.LogChannels"), 0,
 	TEXT("Log state channel values each tick (1=on)."), ECVF_Default);
+
+// ---------------------------------------------------------------------------
+// Unit cylinder geometry (height=1, radius=1, Z-centred) for link tubes.
+// Component scale (XY=tubeRadius, Z=linkLength) stretches it to fit each tick.
+// ---------------------------------------------------------------------------
+static void BuildUnitCylinder(int32 RadialSeg,
+	TArray<FVector>& Verts, TArray<int32>& Tris,
+	TArray<FVector>& Normals, TArray<FVector2D>& UVs)
+{
+	Verts.Reset(); Tris.Reset(); Normals.Reset(); UVs.Reset();
+
+	// Side vertices: top ring then bottom ring
+	for (int32 ring = 0; ring < 2; ++ring)
+	{
+		float Z = (ring == 0) ? 0.5f : -0.5f;
+		for (int32 j = 0; j <= RadialSeg; ++j)
+		{
+			float Phi = UE_TWO_PI * j / RadialSeg;
+			float Cx  = FMath::Cos(Phi);
+			float Cy  = FMath::Sin(Phi);
+			Verts.Add(FVector(Cx, Cy, Z));
+			Normals.Add(FVector(Cx, Cy, 0.f));
+			UVs.Add(FVector2D((float)j / RadialSeg, ring));
+		}
+	}
+
+	// Side triangles
+	for (int32 j = 0; j < RadialSeg; ++j)
+	{
+		int32 A = j;
+		int32 B = j + RadialSeg + 1;
+		Tris.Add(A);     Tris.Add(B);     Tris.Add(A + 1);
+		Tris.Add(B);     Tris.Add(B + 1); Tris.Add(A + 1);
+	}
+
+	// Top cap
+	int32 TopCentre = Verts.Num();
+	Verts.Add(FVector(0, 0, 0.5f)); Normals.Add(FVector::UpVector); UVs.Add(FVector2D(0.5f, 0.f));
+	for (int32 j = 0; j < RadialSeg; ++j)
+	{
+		Tris.Add(TopCentre); Tris.Add(j + 1); Tris.Add(j);
+	}
+
+	// Bottom cap
+	int32 BotCentre = Verts.Num();
+	int32 BotRing   = RadialSeg + 1;
+	Verts.Add(FVector(0, 0, -0.5f)); Normals.Add(-FVector::UpVector); UVs.Add(FVector2D(0.5f, 1.f));
+	for (int32 j = 0; j < RadialSeg; ++j)
+	{
+		Tris.Add(BotCentre); Tris.Add(BotRing + j); Tris.Add(BotRing + j + 1);
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+static UProceduralMeshComponent* SpawnPMC(AActor* Owner, UMaterialInterface* Mat)
+{
+	UProceduralMeshComponent* PMC = NewObject<UProceduralMeshComponent>(Owner);
+	PMC->SetupAttachment(Owner->GetRootComponent());
+	PMC->bUseAsyncCooking = false;
+	PMC->RegisterComponent();
+	if (Mat) PMC->SetMaterial(0, Mat);
+	return PMC;
+}
 
 // ---------------------------------------------------------------------------
 
@@ -32,10 +95,6 @@ UGravityEntityComponent::UGravityEntityComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
 }
-
-// ---------------------------------------------------------------------------
-// Lifecycle
-// ---------------------------------------------------------------------------
 
 void UGravityEntityComponent::BeginPlay()
 {
@@ -94,32 +153,12 @@ void UGravityEntityComponent::ReinitializeEntity()
 	InitializeEntity();
 }
 
-// ---------------------------------------------------------------------------
-// Mesh component management
-// ---------------------------------------------------------------------------
-
 void UGravityEntityComponent::DestroyMeshComponents()
 {
-	for (TObjectPtr<UDynamicMeshComponent>& C : NodeMeshComponents)
-	{
-		if (C) { C->DestroyComponent(); }
-	}
+	for (auto& C : NodeMeshComponents) { if (C) C->DestroyComponent(); }
 	NodeMeshComponents.Reset();
-
-	for (TObjectPtr<UDynamicMeshComponent>& C : LinkMeshComponents)
-	{
-		if (C) { C->DestroyComponent(); }
-	}
+	for (auto& C : LinkMeshComponents) { if (C) C->DestroyComponent(); }
 	LinkMeshComponents.Reset();
-}
-
-static UDynamicMeshComponent* SpawnDMC(AActor* Owner, UMaterialInterface* Mat)
-{
-	UDynamicMeshComponent* DMC = NewObject<UDynamicMeshComponent>(Owner);
-	DMC->SetupAttachment(Owner->GetRootComponent());
-	DMC->RegisterComponent();
-	if (Mat) DMC->SetMaterial(0, Mat);
-	return DMC;
 }
 
 void UGravityEntityComponent::CreateNodeMeshComponents()
@@ -127,27 +166,52 @@ void UGravityEntityComponent::CreateNodeMeshComponents()
 	AActor* Owner = GetOwner();
 	if (!Owner || !Profile) return;
 
+	// Pre-build fallback sphere data once
+	TArray<FVector> FbVerts, FbNorms; TArray<int32> FbTris; TArray<FVector2D> FbUVs;
+	bool bFallbackBuilt = false;
+
 	for (int32 i = 0; i < Nodes.Num(); ++i)
 	{
-		UDynamicMeshComponent* DMC = SpawnDMC(Owner, NodeMaterial);
+		UProceduralMeshComponent* PMC = SpawnPMC(Owner, NodeMaterial);
 
-		UDynamicMesh* Mesh = DMC->GetDynamicMesh();
-		Mesh->Reset();
+		TArray<FVector> V, N; TArray<int32> T; TArray<FVector2D> UV;
 
 		if (UGravityPartGenerator* Gen = Profile->FindGeneratorForRole(Nodes[i].Role))
 		{
-			Gen->GenerateMesh(Mesh);
+			Gen->GenerateMeshData(V, T, N, UV);
 		}
 		else
 		{
-			// Fallback: small sphere
-			FGeometryScriptPrimitiveOptions Opts;
-			UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendSphere(
-				Mesh, Opts, FTransform::Identity, 15.f, 8,
-				EGeometryScriptPrimitiveOriginMode::Center, nullptr);
+			// Fallback: small UV sphere, built once and reused
+			if (!bFallbackBuilt)
+			{
+				// 8-step UV sphere, radius 15cm
+				const int32 S = 8;
+				for (int32 a = 0; a <= S; ++a)
+				{
+					float Theta = UE_PI * a / S;
+					for (int32 b = 0; b <= S; ++b)
+					{
+						float Phi = UE_TWO_PI * b / S;
+						FVector Nrm(FMath::Sin(Theta)*FMath::Cos(Phi), FMath::Sin(Theta)*FMath::Sin(Phi), FMath::Cos(Theta));
+						FbVerts.Add(Nrm * 15.f); FbNorms.Add(Nrm);
+						FbUVs.Add(FVector2D((float)b/S, (float)a/S));
+					}
+				}
+				for (int32 a = 0; a < S; ++a)
+					for (int32 b = 0; b < S; ++b)
+					{
+						int32 A = a*(S+1)+b, B = A+S+1;
+						FbTris.Add(A); FbTris.Add(B); FbTris.Add(A+1);
+						FbTris.Add(B); FbTris.Add(B+1); FbTris.Add(A+1);
+					}
+				bFallbackBuilt = true;
+			}
+			V = FbVerts; T = FbTris; N = FbNorms; UV = FbUVs;
 		}
 
-		NodeMeshComponents.Add(DMC);
+		PMC->CreateMeshSection_LinearColor(0, V, T, N, UV, {}, {}, false);
+		NodeMeshComponents.Add(PMC);
 	}
 }
 
@@ -158,26 +222,16 @@ void UGravityEntityComponent::CreateLinkMeshComponents()
 
 	UMaterialInterface* Mat = LinkMaterial ? LinkMaterial : NodeMaterial;
 
+	TArray<FVector> V, N; TArray<int32> T; TArray<FVector2D> UV;
+	BuildUnitCylinder(8, V, T, N, UV);
+
 	for (int32 i = 0; i < Links.Num(); ++i)
 	{
-		UDynamicMeshComponent* DMC = SpawnDMC(Owner, Mat);
-
-		// Unit cylinder (1 cm radius, 1 cm height, Z-centred). Scaled to inter-node distance each tick.
-		UDynamicMesh* Mesh = DMC->GetDynamicMesh();
-		Mesh->Reset();
-		FGeometryScriptPrimitiveOptions Opts;
-		UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendCylinder(
-			Mesh, Opts, FTransform::Identity,
-			1.f, 1.f, 8, 1, true,
-			EGeometryScriptPrimitiveOriginMode::Center, nullptr);
-
-		LinkMeshComponents.Add(DMC);
+		UProceduralMeshComponent* PMC = SpawnPMC(Owner, Mat);
+		PMC->CreateMeshSection_LinearColor(0, V, T, N, UV, {}, {}, false);
+		LinkMeshComponents.Add(PMC);
 	}
 }
-
-// ---------------------------------------------------------------------------
-// Tick
-// ---------------------------------------------------------------------------
 
 void UGravityEntityComponent::TickComponent(float DeltaTime, ELevelTick TickType,
                                              FActorComponentTickFunction* ThisTickFunction)
@@ -213,7 +267,7 @@ void UGravityEntityComponent::TickComponent(float DeltaTime, ELevelTick TickType
 void UGravityEntityComponent::ComputeDisplayPositions()
 {
 	DisplayPositions.SetNum(Nodes.Num());
-	const bool bHasBreath = Profile && Profile->BreathSignal != nullptr;
+	const bool bHasBreath = Profile && Profile->BreathSignal;
 
 	for (int32 i = 0; i < Nodes.Num(); ++i)
 	{
@@ -232,16 +286,16 @@ void UGravityEntityComponent::UpdateNodeMeshes()
 {
 	if (NodeMeshComponents.Num() != Nodes.Num()) return;
 
-	const bool bHasBreath    = Profile && Profile->BreathSignal;
-	const bool bHasMaterial  = Profile && Profile->MaterialProfile;
+	const bool bHasBreath   = Profile && Profile->BreathSignal;
+	const bool bHasMaterial = Profile && Profile->MaterialProfile;
 
-	// --- Node meshes ---
+	// Node transforms + glow
 	for (int32 i = 0; i < Nodes.Num(); ++i)
 	{
-		UDynamicMeshComponent* DMC = NodeMeshComponents[i];
-		if (!DMC) continue;
+		UProceduralMeshComponent* PMC = NodeMeshComponents[i];
+		if (!PMC) continue;
 
-		// Orientation: align local +Z to spine direction
+		// Orient +Z along spine direction
 		FVector Dir = FVector::UpVector;
 		if (i < DisplayPositions.Num() - 1)
 			Dir = (DisplayPositions[i + 1] - DisplayPositions[i]).GetSafeNormal();
@@ -250,24 +304,22 @@ void UGravityEntityComponent::UpdateNodeMeshes()
 		if (Dir.IsNearlyZero()) Dir = FVector::UpVector;
 
 		FQuat Rot = FQuat::FindBetweenNormals(FVector::UpVector, Dir);
-		DMC->SetWorldTransform(FTransform(Rot, DisplayPositions[i]));
+		PMC->SetWorldTransform(FTransform(Rot, DisplayPositions[i]));
 
-		// Glow: breath wave + tension boost
 		float BreathCPD = bHasBreath
 			? 0.5f + 0.5f * FMath::Sin(Profile->BreathSignal->GetPhase(i) + GlowLeadAngle)
 			: 0.5f;
-		float Tension = Nodes[i].Tension;
-		float Glow    = bHasMaterial
-			? Profile->MaterialProfile->ComputeNodeGlow(BreathCPD, Tension)
+		float Glow = bHasMaterial
+			? Profile->MaterialProfile->ComputeNodeGlow(BreathCPD, Nodes[i].Tension)
 			: BreathCPD;
-		DMC->SetCustomPrimitiveDataFloat(0, Glow);
+		PMC->SetCustomPrimitiveDataFloat(0, Glow);
 	}
 
-	// --- Link tubes ---
+	// Link tube transforms + glow
 	for (int32 i = 0; i < Links.Num(); ++i)
 	{
-		UDynamicMeshComponent* DMC = LinkMeshComponents.IsValidIndex(i) ? LinkMeshComponents[i] : nullptr;
-		if (!DMC) continue;
+		UProceduralMeshComponent* PMC = LinkMeshComponents.IsValidIndex(i) ? LinkMeshComponents[i] : nullptr;
+		if (!PMC) continue;
 
 		int32 A = Links[i].StartNodeID;
 		int32 B = Links[i].EndNodeID;
@@ -281,15 +333,14 @@ void UGravityEntityComponent::UpdateNodeMeshes()
 		if (Dir.IsNearlyZero()) Dir = FVector::UpVector;
 
 		FQuat Rot = FQuat::FindBetweenNormals(FVector::UpVector, Dir);
-		// Scale: XY = tube radius (unit cylinder has radius 1), Z = link length (unit cylinder height 1)
-		DMC->SetWorldTransform(FTransform(Rot, Mid, FVector(LinkTubeRadius, LinkTubeRadius, Len)));
+		// Unit cylinder: radius 1, height 1. Scale XY = tube radius, Z = link length.
+		PMC->SetWorldTransform(FTransform(Rot, Mid, FVector(LinkTubeRadius, LinkTubeRadius, Len)));
 
-		// Link glow = stretch ratio (compressed or stretched links glow brighter)
 		float Stretch = FMath::Abs(Len - Profile->RestSpacing) / FMath::Max(Profile->RestSpacing, 1.f);
 		float Glow    = bHasMaterial
 			? Profile->MaterialProfile->ComputeLinkGlow(Stretch)
 			: FMath::Clamp(0.2f + Stretch * 2.f, 0.f, 1.f);
-		DMC->SetCustomPrimitiveDataFloat(0, Glow);
+		PMC->SetCustomPrimitiveDataFloat(0, Glow);
 	}
 }
 
@@ -302,10 +353,6 @@ void UGravityEntityComponent::SetAttentionTarget(FVector WorldTarget)
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Debug draw (optional overlay, off by default now that meshes are rendered)
-// ---------------------------------------------------------------------------
-
 void UGravityEntityComponent::DebugDraw() const
 {
 	if (!CVarDrawLinks.GetValueOnGameThread()) return;
@@ -315,15 +362,11 @@ void UGravityEntityComponent::DebugDraw() const
 
 	for (int32 i = 0; i < DisplayPositions.Num() - 1; ++i)
 	{
-		float T    = FMath::Clamp(Nodes[i].Tension * 4.f, 0.f, 1.f);
-		FColor LC  = FColor(FMath::RoundToInt(T * 255.f), FMath::RoundToInt((1.f - T) * 200.f), 0);
+		float T   = FMath::Clamp(Nodes[i].Tension * 4.f, 0.f, 1.f);
+		FColor LC = FColor(FMath::RoundToInt(T * 255.f), FMath::RoundToInt((1.f - T) * 200.f), 0);
 		DrawDebugLine(W, DisplayPositions[i], DisplayPositions[i + 1], LC, false, -1.f, 0, 2.f);
 	}
 }
-
-// ---------------------------------------------------------------------------
-// Editor
-// ---------------------------------------------------------------------------
 
 #if WITH_EDITOR
 void UGravityEntityComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
