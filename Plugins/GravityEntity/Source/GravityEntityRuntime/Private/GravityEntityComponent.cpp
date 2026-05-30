@@ -135,6 +135,7 @@ void UGravityEntityComponent::InitializeEntity()
 	if (UGravityWormMovementSolver* WormS = Cast<UGravityWormMovementSolver>(Profile->MovementSolver))
 	{
 		WormS->SetSpawnOrigin(Origin);
+		WormS->RestSpacing = Profile->RestSpacing; // profile is the single source of truth
 	}
 	else if (UGravityOrbitalMovementSolver* OrbS = Cast<UGravityOrbitalMovementSolver>(Profile->MovementSolver))
 	{
@@ -163,6 +164,12 @@ void UGravityEntityComponent::RebuildLogicOnly()
 
 	if (StateChannels) StateChannels->Reset();
 	if (Profile->MovementSolver) Profile->MovementSolver->Reset();
+
+	// Sync solver RestSpacing from profile so one value drives both
+	if (UGravityWormMovementSolver* WormS = Cast<UGravityWormMovementSolver>(Profile->MovementSolver))
+	{
+		WormS->RestSpacing = Profile->RestSpacing;
+	}
 
 	if (Profile->TopologySolver)
 	{
