@@ -8,6 +8,7 @@
 class UGravityEntityProfile;
 class UGravityStateChannels;
 class UGravityPartCache;
+class UInstancedStaticMeshComponent;
 
 // Drives entity simulation: owns nodes/links, ticks solvers, owns state channels.
 // Attach to AGravityEntityPawn (or any actor). Profile is the variant asset.
@@ -31,8 +32,25 @@ public:
 	TArray<FGravityNode> Nodes;
 	TArray<FGravityLink> Links;
 
-	// World-space display positions (physics position + breath offset). Used by debug draw and (M4) meshes.
+	// World-space display positions (physics position + breath offset).
 	TArray<FVector> DisplayPositions;
+
+	// --- Rendering ---
+	// Mesh used for each node. Assign Engine/BasicShapes/Sphere in Details.
+	UPROPERTY(EditAnywhere, Category = "GravityEntity|Rendering")
+	TObjectPtr<UStaticMesh> NodeMesh;
+
+	// Material applied to NodeISM. Assign M_GravityNode. Must read CustomPrimitiveData[0] for glow.
+	UPROPERTY(EditAnywhere, Category = "GravityEntity|Rendering")
+	TObjectPtr<UMaterialInterface> NodeMaterial;
+
+	// Uniform scale of each node mesh instance.
+	UPROPERTY(EditAnywhere, Category = "GravityEntity|Rendering", meta = (ClampMin = "0.01", ClampMax = "10.0"))
+	float NodeScale = 0.25f;
+
+	// Glow phase lead over geometry breath (radians). Positive = glow brightens before the node bobs.
+	UPROPERTY(EditAnywhere, Category = "GravityEntity|Rendering", meta = (ClampMin = "0.0", ClampMax = "3.14"))
+	float GlowLeadAngle = 0.35f;
 
 	// Drive the lead node's attention toward a world-space target.
 	UFUNCTION(BlueprintCallable, Category = "GravityEntity")
@@ -54,7 +72,13 @@ private:
 	UPROPERTY()
 	TObjectPtr<UGravityPartCache> PartCache;
 
+	// Runtime ISM — one instance per node, updated each tick.
+	UPROPERTY()
+	TObjectPtr<UInstancedStaticMeshComponent> NodeISM;
+
 	void InitializeEntity();
+	void RebuildISMInstances();
+	void UpdateISM();
 	void ComputeDisplayPositions();
 	void DebugDraw() const;
 };

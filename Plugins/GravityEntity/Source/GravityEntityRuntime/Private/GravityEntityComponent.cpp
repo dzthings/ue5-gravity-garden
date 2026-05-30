@@ -7,6 +7,7 @@
 #include "GravityBreathSignal.h"
 #include "GravityWormMovementSolver.h"
 #include "GravityOrbitalMovementSolver.h"
+#include "Components/InstancedStaticMeshComponent.h"
 #include "DrawDebugHelpers.h"
 #include "HAL/IConsoleManager.h"
 
@@ -14,7 +15,7 @@
 // CVars
 // ---------------------------------------------------------------------------
 static TAutoConsoleVariable<int32> CVarDrawNodes(
-	TEXT("ge.Debug.DrawNodes"), 1,
+	TEXT("ge.Debug.DrawNodes"), 0,
 	TEXT("Draw entity nodes as debug spheres (1=on)."), ECVF_Default);
 
 static TAutoConsoleVariable<int32> CVarDrawLinks(
@@ -26,19 +27,19 @@ static TAutoConsoleVariable<int32> CVarLogChannels(
 	TEXT("Log state channel values each tick (1=on)."), ECVF_Default);
 
 // ---------------------------------------------------------------------------
-// Role colors (used by debug draw)
+// Role colors (debug draw)
 // ---------------------------------------------------------------------------
 static FColor RoleColor(EGravityNodeRole Role)
 {
 	switch (Role)
 	{
-	case EGravityNodeRole::Lead:        return FColor::Red;
-	case EGravityNodeRole::Core:        return FColor::Yellow;
-	case EGravityNodeRole::Anchor:      return FColor::White;
-	case EGravityNodeRole::Shield:      return FColor::Blue;
-	case EGravityNodeRole::Orbital:     return FColor::Magenta;
-	case EGravityNodeRole::ScoutTip:    return FColor::Orange;
-	default:                            return FColor::Cyan; // Spine and rest
+	case EGravityNodeRole::Lead:    return FColor::Red;
+	case EGravityNodeRole::Core:    return FColor::Yellow;
+	case EGravityNodeRole::Anchor:  return FColor::White;
+	case EGravityNodeRole::Shield:  return FColor::Blue;
+	case EGravityNodeRole::Orbital: return FColor::Magenta;
+	case EGravityNodeRole::ScoutTip:return FColor::Orange;
+	default:                        return FColor::Cyan;
 	}
 }
 
@@ -56,6 +57,18 @@ void UGravityEntityComponent::BeginPlay()
 	StateChannels = NewObject<UGravityStateChannels>(this);
 	PartCache     = NewObject<UGravityPartCache>(this);
 
+	// Create ISM for node rendering — attached to owner root, lives for the actor's lifetime.
+	if (AActor* Owner = GetOwner())
+	{
+		NodeISM = NewObject<UInstancedStaticMeshComponent>(Owner, TEXT("NodeISM"));
+		NodeISM->NumCustomDataFloats = 1; // [0] = glow intensity
+		NodeISM->SetupAttachment(Owner->GetRootComponent());
+		NodeISM->RegisterComponent();
+
+		if (NodeMesh)     NodeISM->SetStaticMesh(NodeMesh);
+		if (NodeMaterial) NodeISM->SetMaterial(0, NodeMaterial);
+	}
+
 	InitializeEntity();
 }
 
@@ -67,21 +80,13 @@ void UGravityEntityComponent::InitializeEntity()
 	Links.Reset();
 	DisplayPositions.Reset();
 
-	if (StateChannels)
-	{
-		StateChannels->Reset();
-	}
-
-	if (Profile->MovementSolver)
-	{
-		Profile->MovementSolver->Reset();
-	}
+	if (StateChannels) StateChannels->Reset();
+	if (Profile->MovementSolver) Profile->MovementSolver->Reset();
 
 	if (Profile->TopologySolver)
 	{
 		Profile->TopologySolver->BuildTopology(Nodes, Links, Profile);
 
-		// Offset nodes to actor world location
 		const FVector Origin = GetOwner() ? GetOwner()->GetActorLocation() : FVector::ZeroVector;
 		for (FGravityNode& Node : Nodes)
 		{
@@ -92,38 +97,46 @@ void UGravityEntityComponent::InitializeEntity()
 
 	DisplayPositions.SetNum(Nodes.Num());
 
-	// Give the movement solver its spawn origin for autonomous locomotion
 	const FVector Origin = GetOwner() ? GetOwner()->GetActorLocation() : FVector::ZeroVector;
-	if (UGravityWormMovementSolver* WormSolver = Cast<UGravityWormMovementSolver>(Profile->MovementSolver))
+	if (UGravityWormMovementSolver* S = Cast<UGravityWormMovementSolver>(Profile->MovementSolver))
 	{
-		WormSolver->SetSpawnOrigin(Origin);
+		S->SetSpawnOrigin(Origin);
 	}
-	else if (UGravityOrbitalMovementSolver* OrbSolver = Cast<UGravityOrbitalMovementSolver>(Profile->MovementSolver))
+	else if (UGravityOrbitalMovementSolver* S = Cast<UGravityOrbitalMovementSolver>(Profile->MovementSolver))
 	{
-		OrbSolver->SetSpawnOrigin(Origin);
+		S->SetSpawnOrigin(Origin);
+	}
+
+	RebuildISMInstances();
+}
+
+void UGravityEntityComponent::RebuildISMInstances()
+{
+	if (!NodeISM) return;
+
+	NodeISM->ClearInstances();
+
+	const FVector Scale(NodeScale);
+	for (int32 i = 0; i < Nodes.Num(); ++i)
+	{
+		FTransform T(FQuat::Identity, DisplayPositions.IsValidIndex(i) ? DisplayPositions[i] : Nodes[i].Position, Scale);
+		NodeISM->AddInstance(T, /*bWorldSpace=*/true);
 	}
 }
 
 void UGravityEntityComponent::ReinitializeEntity()
 {
-	// Called from PostEditChangeProperty (editor, pre-BeginPlay) — create objects if not yet initialized.
-	if (!StateChannels)
-	{
-		StateChannels = NewObject<UGravityStateChannels>(this);
-	}
-	if (!PartCache)
-	{
-		PartCache = NewObject<UGravityPartCache>(this);
-	}
+	if (!StateChannels) StateChannels = NewObject<UGravityStateChannels>(this);
+	if (!PartCache)     PartCache     = NewObject<UGravityPartCache>(this);
 	InitializeEntity();
 }
 
 void UGravityEntityComponent::SetAttentionTarget(FVector WorldTarget)
 {
 	if (!Profile) return;
-	if (UGravityWormMovementSolver* WormSolver = Cast<UGravityWormMovementSolver>(Profile->MovementSolver))
+	if (UGravityWormMovementSolver* S = Cast<UGravityWormMovementSolver>(Profile->MovementSolver))
 	{
-		WormSolver->SetAttentionTarget(WorldTarget);
+		S->SetAttentionTarget(WorldTarget);
 	}
 }
 
@@ -142,13 +155,12 @@ void UGravityEntityComponent::TickComponent(float DeltaTime, ELevelTick TickType
 	if (Profile->BreathSignal)
 	{
 		Profile->BreathSignal->Update(Nodes.Num(), DeltaTime);
-
-		// Write breath channels from lead node
 		StateChannels->BreathPhase     = Profile->BreathSignal->GetPhase(0);
 		StateChannels->BreathAmplitude = Profile->BreathSignal->GetAmplitude(0);
 	}
 
 	ComputeDisplayPositions();
+	UpdateISM();
 	DebugDraw();
 
 	if (CVarLogChannels.GetValueOnGameThread())
@@ -162,24 +174,41 @@ void UGravityEntityComponent::TickComponent(float DeltaTime, ELevelTick TickType
 void UGravityEntityComponent::ComputeDisplayPositions()
 {
 	DisplayPositions.SetNum(Nodes.Num());
-
-	const bool bHasBreath = (Profile && Profile->BreathSignal != nullptr);
+	const bool bHasBreath = Profile && Profile->BreathSignal != nullptr;
 
 	for (int32 i = 0; i < Nodes.Num(); ++i)
 	{
 		FVector Offset = FVector::ZeroVector;
-
 		if (bHasBreath)
 		{
 			float Phase = Profile->BreathSignal->GetPhase(i);
 			float Amp   = Profile->BreathSignal->GetAmplitude(i);
-			// Vertical bob in world units: Amp is 0-1, scale to a fraction of RestSpacing
-			const float BreathScale = Profile->RestSpacing * 0.25f;
-			Offset.Z = Amp * BreathScale * FMath::Sin(Phase);
+			Offset.Z    = Amp * (Profile->RestSpacing * 0.25f) * FMath::Sin(Phase);
 		}
-
 		DisplayPositions[i] = Nodes[i].Position + Offset;
 	}
+}
+
+void UGravityEntityComponent::UpdateISM()
+{
+	if (!NodeISM || NodeISM->GetInstanceCount() != Nodes.Num()) return;
+
+	const bool bHasBreath = Profile && Profile->BreathSignal != nullptr;
+	const FVector Scale(NodeScale);
+
+	for (int32 i = 0; i < Nodes.Num(); ++i)
+	{
+		// Update world-space transform
+		FTransform T(FQuat::Identity, DisplayPositions[i], Scale);
+		NodeISM->UpdateInstanceTransform(i, T, /*bWorldSpace=*/true, /*bMarkDirty=*/false);
+
+		// CPD[0]: glow = 0.5 + 0.5*sin(breathPhase + leadAngle) → maps to [0,1]
+		float GlowPhase = (bHasBreath ? Profile->BreathSignal->GetPhase(i) : 0.f) + GlowLeadAngle;
+		float Glow      = 0.5f + 0.5f * FMath::Sin(GlowPhase);
+		NodeISM->SetCustomDataValue(i, 0, Glow, /*bMarkDirty=*/false);
+	}
+
+	NodeISM->MarkRenderStateDirty();
 }
 
 void UGravityEntityComponent::DebugDraw() const
@@ -189,30 +218,20 @@ void UGravityEntityComponent::DebugDraw() const
 
 	const bool bDrawNodes = CVarDrawNodes.GetValueOnGameThread() != 0;
 	const bool bDrawLinks = CVarDrawLinks.GetValueOnGameThread() != 0;
-
 	if (!bDrawNodes && !bDrawLinks) return;
-
-	const float NodeRadius = 14.f;
 
 	for (int32 i = 0; i < DisplayPositions.Num(); ++i)
 	{
 		if (bDrawNodes)
 		{
-			DrawDebugSphere(W, DisplayPositions[i], NodeRadius, 8,
+			DrawDebugSphere(W, DisplayPositions[i], 14.f, 8,
 				RoleColor(Nodes[i].Role), false, -1.f, 0, 1.f);
 		}
-
 		if (bDrawLinks && i < DisplayPositions.Num() - 1)
 		{
-			// Tint link from green (relaxed) toward red (high tension)
-			float T = FMath::Clamp(Nodes[i].Tension * 4.f, 0.f, 1.f);
-			FColor LinkColor = FColor(
-				FMath::RoundToInt(T * 255.f),
-				FMath::RoundToInt((1.f - T) * 200.f),
-				0);
-
-			DrawDebugLine(W, DisplayPositions[i], DisplayPositions[i + 1],
-				LinkColor, false, -1.f, 0, 2.f);
+			float    T  = FMath::Clamp(Nodes[i].Tension * 4.f, 0.f, 1.f);
+			FColor   LC = FColor(FMath::RoundToInt(T * 255.f), FMath::RoundToInt((1.f - T) * 200.f), 0);
+			DrawDebugLine(W, DisplayPositions[i], DisplayPositions[i + 1], LC, false, -1.f, 0, 2.f);
 		}
 	}
 }
@@ -222,9 +241,18 @@ void UGravityEntityComponent::PostEditChangeProperty(FPropertyChangedEvent& Prop
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UGravityEntityComponent, Profile))
+	const FName Prop = PropertyChangedEvent.GetPropertyName();
+	if (Prop == GET_MEMBER_NAME_CHECKED(UGravityEntityComponent, Profile) ||
+	    Prop == GET_MEMBER_NAME_CHECKED(UGravityEntityComponent, NodeMesh) ||
+	    Prop == GET_MEMBER_NAME_CHECKED(UGravityEntityComponent, NodeMaterial) ||
+	    Prop == GET_MEMBER_NAME_CHECKED(UGravityEntityComponent, NodeScale))
 	{
 		ReinitializeEntity();
+		if (NodeISM)
+		{
+			if (NodeMesh)     NodeISM->SetStaticMesh(NodeMesh);
+			if (NodeMaterial) NodeISM->SetMaterial(0, NodeMaterial);
+		}
 	}
 }
 #endif
