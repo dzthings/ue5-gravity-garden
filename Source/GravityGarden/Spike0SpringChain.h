@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Components/SceneComponent.h"
 #include "Spike0SpringChain.generated.h"
 
 // Throwaway Spike 0 actor — delete after the motion gate visual is confirmed.
@@ -52,6 +53,9 @@ private:
 	};
 
 	TArray<FNode> Nodes;
+
+	UPROPERTY()
+	TObjectPtr<USceneComponent> SceneRoot;
 
 	void InitChain();
 	void StepSimulation(float Dt);

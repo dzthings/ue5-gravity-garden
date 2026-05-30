@@ -4,6 +4,9 @@
 ASpike0SpringChain::ASpike0SpringChain()
 {
 	PrimaryActorTick.bCanEverTick = true;
+
+	SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
+	SetRootComponent(SceneRoot);
 }
 
 void ASpike0SpringChain::BeginPlay()
@@ -19,7 +22,7 @@ void ASpike0SpringChain::InitChain()
 	for (int32 i = 0; i < NodeCount; ++i)
 	{
 		FNode N;
-		N.Position  = Origin + FVector(0.f, i * RestSpacing, 0.f);
+		N.Position  = Origin + FVector(0.f, 0.f, -i * RestSpacing); // hang downward
 		N.Velocity  = FVector::ZeroVector;
 		N.bAnchored = (i == 0);
 		Nodes.Add(N);
@@ -69,6 +72,13 @@ void ASpike0SpringChain::StepSimulation(float Dt)
 void ASpike0SpringChain::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	// Keep anchor pinned to actor world location
+	if (Nodes.Num() > 0)
+	{
+		Nodes[0].Position = GetActorLocation();
+		Nodes[0].Velocity = FVector::ZeroVector;
+	}
 
 	// Sub-step for stability at low frame rates
 	const int32 Steps   = 4;
