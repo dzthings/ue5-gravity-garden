@@ -163,8 +163,9 @@ void UGravityEntityComponent::ComputeDisplayPositions()
 		{
 			float Phase = Profile->BreathSignal->GetPhase(i);
 			float Amp   = Profile->BreathSignal->GetAmplitude(i);
-			// Subtle vertical bob — small enough that physics motion dominates
-			Offset.Z = Amp * 12.f * FMath::Sin(Phase);
+			// Vertical bob in world units: Amp is 0-1, scale to a fraction of RestSpacing
+			const float BreathScale = Profile->RestSpacing * 0.25f;
+			Offset.Z = Amp * BreathScale * FMath::Sin(Phase);
 		}
 
 		DisplayPositions[i] = Nodes[i].Position + Offset;
