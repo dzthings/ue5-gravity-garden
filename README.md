@@ -54,7 +54,7 @@ DECISIONS.md                      # log of non-default architectural choices
 | **Spike 0** — throwaway debug spring chain | ✅ Done — deleted | Motion confirmed in PIE; Spike 0 code removed |
 | **M0** — plugin skeleton + profile asset | ✅ Done | Plugin enables clean; empty profile opens in Details panel |
 | **M1** — one living Worm spine | ✅ Done | Motion gate passed — spine reads as kinetic/alive. Spring-damper chain, attention spring, autonomous locomotion, traveling breath wave, role-colored debug draw, state channels populated |
-| **M2** — variation | ⬜ Not started | Worm + Orbital Cluster from one pawn class, each distinct within 30s |
+| **M2** — variation | ✅ Code ready | `UGravityOrbitalTopologySolver` (Fibonacci sphere) + `UGravityOrbitalMovementSolver` (Lissajous core drift, per-node tilted orbit axes); place second pawn with `DA_OrbitalProfile` alongside Worm |
 | **M3** — live tuning + glow | ⬜ Not started | PostEditChangeProperty rebuild, glow breath on state channel (after M1 motion gate) |
 | **M4** — parametric parts + materials | ⬜ Not started | Geometry Script part kit, ISM/HISM, bounded master materials |
 | **M5** — portability | ⬜ Not started | Plugin drops into a second project with zero Garden deps |

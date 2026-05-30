@@ -6,6 +6,7 @@
 #include "GravityMovementSolver.h"
 #include "GravityBreathSignal.h"
 #include "GravityWormMovementSolver.h"
+#include "GravityOrbitalMovementSolver.h"
 #include "DrawDebugHelpers.h"
 #include "HAL/IConsoleManager.h"
 
@@ -87,10 +88,14 @@ void UGravityEntityComponent::InitializeEntity()
 	DisplayPositions.SetNum(Nodes.Num());
 
 	// Give the movement solver its spawn origin for autonomous locomotion
+	const FVector Origin = GetOwner() ? GetOwner()->GetActorLocation() : FVector::ZeroVector;
 	if (UGravityWormMovementSolver* WormSolver = Cast<UGravityWormMovementSolver>(Profile->MovementSolver))
 	{
-		const FVector Origin = GetOwner() ? GetOwner()->GetActorLocation() : FVector::ZeroVector;
 		WormSolver->SetSpawnOrigin(Origin);
+	}
+	else if (UGravityOrbitalMovementSolver* OrbSolver = Cast<UGravityOrbitalMovementSolver>(Profile->MovementSolver))
+	{
+		OrbSolver->SetSpawnOrigin(Origin);
 	}
 }
 
