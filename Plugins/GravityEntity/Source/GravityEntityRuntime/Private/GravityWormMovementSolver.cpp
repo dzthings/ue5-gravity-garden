@@ -80,6 +80,27 @@ void UGravityWormMovementSolver::StepSimulation(TArray<FGravityNode>& Nodes, flo
 		Forces[i + 1] -= Spring;
 	}
 
+	// Node-node repulsion — prevents self-intersection on tight bends.
+	// Skip adjacent pairs (i, i+1) — already handled by the spring above.
+	if (NodeRepulsionStrength > 0.f)
+	{
+		for (int32 i = 0; i < N; ++i)
+		{
+			for (int32 j = i + 2; j < N; ++j)
+			{
+				FVector Delta = Nodes[j].Position - Nodes[i].Position;
+				float   Dist  = Delta.Size();
+				if (Dist < NodeRepulsionRadius && Dist > UE_KINDA_SMALL_NUMBER)
+				{
+					FVector Dir   = Delta / Dist;
+					float   Force = NodeRepulsionStrength * (1.f - Dist / NodeRepulsionRadius);
+					Forces[i] -= Dir * Force;
+					Forces[j] += Dir * Force;
+				}
+			}
+		}
+	}
+
 	// Integrate
 	for (int32 i = 0; i < N; ++i)
 	{

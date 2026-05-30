@@ -36,6 +36,14 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Physics", meta = (ClampMin = "1", ClampMax = "16"))
 	int32 SubSteps = 4;
 
+	// Push-apart force between non-adjacent nodes — prevents self-intersection on tight bends.
+	UPROPERTY(EditAnywhere, Category = "Physics", meta = (ClampMin = "0.0", ClampMax = "2000.0"))
+	float NodeRepulsionStrength = 300.f;
+
+	// Distance at which repulsion activates (cm). Set to ~2x your capsule radius.
+	UPROPERTY(EditAnywhere, Category = "Physics", meta = (ClampMin = "0.0", ClampMax = "200.0"))
+	float NodeRepulsionRadius = 38.f;
+
 	// --- Attention spring on lead node ---
 	UPROPERTY(EditAnywhere, Category = "Attention", meta = (ClampMin = "0.0", ClampMax = "5000.0"))
 	float AttentionStrength = 600.f;
