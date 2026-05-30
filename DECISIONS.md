@@ -18,3 +18,11 @@ The brief's "compression/release locomotion" and "movement is the primary identi
 Decision: locomotion style lives on the movement solver, not in shared infrastructure. `UGravityWormMovementSolver` constrains nodes to a ground plane and walks the attention target along the surface. Floating entities (`UGravityOrbitalMovementSolver`) have no ground constraint — they own their own locomotion model. Each future family declares its own.
 
 ---
+
+## 2026-05-30 · Collision · Ground constraint is flat-plane only — terrain collision deferred
+
+Current `bGroundConstrained` clamps nodes to a fixed `GroundZ` (set from spawn height). Nodes pass through actual level meshes. Known limitation, intentionally deferred — motion identity is being validated on flat ground first.
+
+Fix when needed: per-node downward raycast in `StepSimulation`, use hit Z as floor instead of fixed `GroundZ`. ~One raycast per node per sub-step, acceptable cost for 8–12 nodes. Target milestone: M5 or when non-flat terrain testing begins.
+
+---
