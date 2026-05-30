@@ -67,6 +67,13 @@ public:
 	virtual void Solve(TArray<FGravityNode>& Nodes, const TArray<FGravityLink>& Links,
 	                   float DeltaTime, UGravityStateChannels* Channels) override;
 
+	virtual void Reset() override
+	{
+		LocomotionTime  = 0.f;
+		AttentionTarget = FVector::ZeroVector;
+		bManualTarget   = false;
+	}
+
 private:
 	FVector SpawnOrigin     = FVector::ZeroVector;
 	FVector AttentionTarget = FVector::ZeroVector;

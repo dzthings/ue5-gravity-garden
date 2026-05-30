@@ -17,4 +17,8 @@ class GRAVITYENTITYRUNTIME_API UGravityMovementSolver : public UObject
 public:
 	virtual void Solve(TArray<FGravityNode>& Nodes, const TArray<FGravityLink>& Links,
 	                   float DeltaTime, UGravityStateChannels* Channels) {}
+
+	// Called by UGravityEntityComponent::InitializeEntity() each session.
+	// Subclasses must reset all time accumulators and cached state here.
+	virtual void Reset() {}
 };

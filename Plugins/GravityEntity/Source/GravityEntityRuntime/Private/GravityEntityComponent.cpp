@@ -72,6 +72,11 @@ void UGravityEntityComponent::InitializeEntity()
 		StateChannels->Reset();
 	}
 
+	if (Profile->MovementSolver)
+	{
+		Profile->MovementSolver->Reset();
+	}
+
 	if (Profile->TopologySolver)
 	{
 		Profile->TopologySolver->BuildTopology(Nodes, Links, Profile);

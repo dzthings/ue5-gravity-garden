@@ -61,6 +61,16 @@ public:
 	virtual void Solve(TArray<FGravityNode>& Nodes, const TArray<FGravityLink>& Links,
 	                   float DeltaTime, UGravityStateChannels* Channels) override;
 
+	virtual void Reset() override
+	{
+		OrbitTime    = 0.f;
+		DriftTime    = 0.f;
+		bInitialized = false;
+		OrbitAxes.Reset();
+		InitialOffsets.Reset();
+		PhaseOffsets.Reset();
+	}
+
 private:
 	FVector SpawnOrigin = FVector::ZeroVector;
 	float   OrbitTime   = 0.f;
