@@ -115,7 +115,17 @@ void UGravityEntityComponent::InitializeEntity()
 	DisplayPositions.Reset();
 
 	if (StateChannels) StateChannels->Reset();
-	if (Profile->MovementSolver) Profile->MovementSolver->Reset();
+
+	// Duplicate solver + breath from profile so each entity has independent runtime state.
+	// The profile is config; this component owns the live instances.
+	SolverInstance = Profile->MovementSolver
+		? DuplicateObject<UGravityMovementSolver>(Profile->MovementSolver, this)
+		: nullptr;
+	BreathInstance = Profile->BreathSignal
+		? DuplicateObject<UGravityBreathSignal>(Profile->BreathSignal, this)
+		: nullptr;
+
+	if (SolverInstance) SolverInstance->Reset();
 
 	if (Profile->TopologySolver)
 	{
@@ -132,12 +142,12 @@ void UGravityEntityComponent::InitializeEntity()
 	DisplayPositions.SetNum(Nodes.Num());
 
 	const FVector Origin = GetOwner() ? GetOwner()->GetActorLocation() : FVector::ZeroVector;
-	if (UGravityWormMovementSolver* WormS = Cast<UGravityWormMovementSolver>(Profile->MovementSolver))
+	if (UGravityWormMovementSolver* WormS = Cast<UGravityWormMovementSolver>(SolverInstance))
 	{
 		WormS->SetSpawnOrigin(Origin);
-		WormS->RestSpacing = Profile->RestSpacing; // profile is the single source of truth
+		WormS->RestSpacing = Profile->RestSpacing;
 	}
-	else if (UGravityOrbitalMovementSolver* OrbS = Cast<UGravityOrbitalMovementSolver>(Profile->MovementSolver))
+	else if (UGravityOrbitalMovementSolver* OrbS = Cast<UGravityOrbitalMovementSolver>(SolverInstance))
 	{
 		OrbS->SetSpawnOrigin(Origin);
 	}
@@ -163,10 +173,17 @@ void UGravityEntityComponent::RebuildLogicOnly()
 	DisplayPositions.Reset();
 
 	if (StateChannels) StateChannels->Reset();
-	if (Profile->MovementSolver) Profile->MovementSolver->Reset();
 
-	// Sync solver RestSpacing from profile so one value drives both
-	if (UGravityWormMovementSolver* WormS = Cast<UGravityWormMovementSolver>(Profile->MovementSolver))
+	SolverInstance = Profile->MovementSolver
+		? DuplicateObject<UGravityMovementSolver>(Profile->MovementSolver, this)
+		: nullptr;
+	BreathInstance = Profile->BreathSignal
+		? DuplicateObject<UGravityBreathSignal>(Profile->BreathSignal, this)
+		: nullptr;
+
+	if (SolverInstance) SolverInstance->Reset();
+
+	if (UGravityWormMovementSolver* WormS = Cast<UGravityWormMovementSolver>(SolverInstance))
 	{
 		WormS->RestSpacing = Profile->RestSpacing;
 	}
@@ -286,16 +303,16 @@ void UGravityEntityComponent::TickComponent(float DeltaTime, ELevelTick TickType
 
 	if (!Profile || Nodes.Num() == 0) return;
 
-	if (Profile->MovementSolver)
+	if (SolverInstance)
 	{
-		Profile->MovementSolver->Solve(Nodes, Links, DeltaTime, StateChannels);
+		SolverInstance->Solve(Nodes, Links, DeltaTime, StateChannels);
 	}
 
-	if (Profile->BreathSignal)
+	if (BreathInstance)
 	{
-		Profile->BreathSignal->Update(Nodes.Num(), DeltaTime);
-		StateChannels->BreathPhase     = Profile->BreathSignal->GetPhase(0);
-		StateChannels->BreathAmplitude = Profile->BreathSignal->GetAmplitude(0);
+		BreathInstance->Update(Nodes.Num(), DeltaTime);
+		StateChannels->BreathPhase     = BreathInstance->GetPhase(0);
+		StateChannels->BreathAmplitude = BreathInstance->GetAmplitude(0);
 	}
 
 	ComputeDisplayPositions();
@@ -313,15 +330,15 @@ void UGravityEntityComponent::TickComponent(float DeltaTime, ELevelTick TickType
 void UGravityEntityComponent::ComputeDisplayPositions()
 {
 	DisplayPositions.SetNum(Nodes.Num());
-	const bool bHasBreath = Profile && Profile->BreathSignal;
+	const bool bHasBreath = BreathInstance != nullptr;
 
 	for (int32 i = 0; i < Nodes.Num(); ++i)
 	{
 		FVector Offset = FVector::ZeroVector;
 		if (bHasBreath)
 		{
-			float Phase = Profile->BreathSignal->GetPhase(i);
-			float Amp   = Profile->BreathSignal->GetAmplitude(i);
+			float Phase = BreathInstance->GetPhase(i);
+			float Amp   = BreathInstance->GetAmplitude(i);
 			Offset.Z    = Amp * (Profile->RestSpacing * 0.25f) * FMath::Sin(Phase);
 		}
 		DisplayPositions[i] = Nodes[i].Position + Offset;
@@ -332,7 +349,7 @@ void UGravityEntityComponent::UpdateNodeMeshes()
 {
 	if (NodeMeshComponents.Num() != Nodes.Num()) return;
 
-	const bool bHasBreath   = Profile && Profile->BreathSignal;
+	const bool bHasBreath   = BreathInstance != nullptr;
 	const bool bHasMaterial = Profile && Profile->MaterialProfile;
 
 	// Node transforms + glow
@@ -353,7 +370,7 @@ void UGravityEntityComponent::UpdateNodeMeshes()
 		PMC->SetWorldTransform(FTransform(Rot, DisplayPositions[i]));
 
 		float BreathCPD = bHasBreath
-			? 0.5f + 0.5f * FMath::Sin(Profile->BreathSignal->GetPhase(i) + GlowLeadAngle)
+			? 0.5f + 0.5f * FMath::Sin(BreathInstance->GetPhase(i) + GlowLeadAngle)
 			: 0.5f;
 		float Glow = bHasMaterial
 			? Profile->MaterialProfile->ComputeNodeGlow(BreathCPD, Nodes[i].Tension)
@@ -398,8 +415,7 @@ void UGravityEntityComponent::UpdateNodeMeshes()
 
 void UGravityEntityComponent::SetAttentionTarget(FVector WorldTarget)
 {
-	if (!Profile) return;
-	if (UGravityWormMovementSolver* WormS = Cast<UGravityWormMovementSolver>(Profile->MovementSolver))
+	if (UGravityWormMovementSolver* WormS = Cast<UGravityWormMovementSolver>(SolverInstance))
 	{
 		WormS->SetAttentionTarget(WorldTarget);
 	}

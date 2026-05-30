@@ -79,6 +79,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Locomotion")
 	bool bAutonomousLocomotion = true;
 
+	void SetInitialHeading(float AngleRadians) { HeadingAngle = AngleRadians; }
+
 	void SetSpawnOrigin(FVector WorldOrigin)
 	{
 		SpawnOrigin     = WorldOrigin;

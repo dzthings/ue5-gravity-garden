@@ -2,6 +2,7 @@
 #include "GravityEntityPawn.h"
 #include "GravityEntityComponent.h"
 #include "GravityEntityProfile.h"
+#include "GravityWormMovementSolver.h"
 
 AGravityEntitySpawner::AGravityEntitySpawner()
 {
@@ -45,6 +46,12 @@ void AGravityEntitySpawner::BeginPlay()
 				GEC->NodeMaterial = EntityMaterial;
 				GEC->LinkMaterial = EntityMaterial;
 				GEC->ReinitializeEntity(); // BeginPlay already fired with null profile — rebuild now
+
+				// Give each worm a unique starting heading so they diverge immediately
+				if (UGravityWormMovementSolver* WormS = Cast<UGravityWormMovementSolver>(GEC->SolverInstance))
+				{
+					WormS->SetInitialHeading(Rng.FRandRange(0.f, UE_TWO_PI));
+				}
 			}
 		}
 	}

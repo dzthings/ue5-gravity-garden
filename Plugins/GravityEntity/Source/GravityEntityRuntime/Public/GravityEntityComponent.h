@@ -8,11 +8,13 @@
 class UGravityEntityProfile;
 class UGravityStateChannels;
 class UGravityPartCache;
+class UGravityMovementSolver;
+class UGravityBreathSignal;
 class UProceduralMeshComponent;
 
 // Drives entity simulation: owns nodes/links, ticks solvers, owns state channels.
-// Renders nodes via UProceduralMeshComponent (one per node) with hand-computed shapes,
-// and link tubes (one per link). Both use CustomPrimitiveData[0] for per-primitive glow.
+// Each entity duplicates the profile's solver and breath signal at init so multiple
+// entities using the same profile have independent runtime state.
 UCLASS(ClassGroup = "GravityEntity", meta = (BlueprintSpawnableComponent))
 class GRAVITYENTITYRUNTIME_API UGravityEntityComponent : public UActorComponent
 {
@@ -31,7 +33,7 @@ public:
 	TArray<FGravityLink> Links;
 	TArray<FVector>      DisplayPositions;
 
-	// Material applied to node meshes. Must use CustomPrimitiveData node (index 0) for glow.
+	// Material applied to node meshes. Needs a ScalarParameter named 'GlowValue'.
 	UPROPERTY(EditAnywhere, Category = "GravityEntity|Rendering")
 	TObjectPtr<UMaterialInterface> NodeMaterial;
 
@@ -39,22 +41,24 @@ public:
 	UPROPERTY(EditAnywhere, Category = "GravityEntity|Rendering")
 	TObjectPtr<UMaterialInterface> LinkMaterial;
 
-	// Radius of link tube cylinders (cm).
 	UPROPERTY(EditAnywhere, Category = "GravityEntity|Rendering", meta = (ClampMin = "0.5", ClampMax = "20.0"))
 	float LinkTubeRadius = 3.f;
 
-	// Glow phase lead over geometry breath (radians). Positive = glow brightens before node moves.
 	UPROPERTY(EditAnywhere, Category = "GravityEntity|Rendering", meta = (ClampMin = "0.0", ClampMax = "3.14"))
 	float GlowLeadAngle = 0.35f;
+
+	// Per-entity solver instance (duplicated from profile at init — independent runtime state).
+	UPROPERTY(VisibleAnywhere, Category = "GravityEntity|State")
+	TObjectPtr<UGravityMovementSolver> SolverInstance;
+
+	// Per-entity breath instance (duplicated from profile at init).
+	UPROPERTY(VisibleAnywhere, Category = "GravityEntity|State")
+	TObjectPtr<UGravityBreathSignal> BreathInstance;
 
 	UFUNCTION(BlueprintCallable, Category = "GravityEntity")
 	void SetAttentionTarget(FVector WorldTarget);
 
-	// Full reinit including mesh components — call only at BeginPlay or from game code.
 	void ReinitializeEntity();
-
-	// Logical-only rebuild: resets solver + topology without touching UObject creation.
-	// Safe to call from PostEditChangeProperty.
 	void RebuildLogicOnly();
 
 protected:
