@@ -108,15 +108,33 @@ void UGravityWormMovementSolver::StepSimulation(TArray<FGravityNode>& Nodes, flo
 		Node.Velocity += Forces[i] * Dt;
 		Node.Position += Node.Velocity * Dt;
 
-		// Ground constraint — each entity type owns its locomotion style in its solver
-		if (bGroundConstrained && Node.Position.Z < GroundZ)
+		// Ground constraint — raycast to find actual surface, fall back to flat GroundZ plane.
+		if (bGroundConstrained)
 		{
-			Node.Position.Z = GroundZ;
-			if (Node.Velocity.Z < 0.f)
+			float FloorZ = GroundZ;
+
+			UWorld* W = World.Get();
+			if (W)
 			{
-				Node.Velocity.Z  = 0.f;
-				Node.Velocity.X *= (1.f - GroundFriction);
-				Node.Velocity.Y *= (1.f - GroundFriction);
+				FHitResult Hit;
+				FVector TraceStart = Node.Position + FVector(0.f, 0.f, 50.f);
+				FVector TraceEnd   = Node.Position - FVector(0.f, 0.f, 200.f);
+				FCollisionQueryParams Params(SCENE_QUERY_STAT(GEGroundTrace), false);
+				if (W->LineTraceSingleByChannel(Hit, TraceStart, TraceEnd, ECC_WorldStatic, Params))
+				{
+					FloorZ = Hit.ImpactPoint.Z;
+				}
+			}
+
+			if (Node.Position.Z < FloorZ)
+			{
+				Node.Position.Z = FloorZ;
+				if (Node.Velocity.Z < 0.f)
+				{
+					Node.Velocity.Z  = 0.f;
+					Node.Velocity.X *= (1.f - GroundFriction);
+					Node.Velocity.Y *= (1.f - GroundFriction);
+				}
 			}
 		}
 	}

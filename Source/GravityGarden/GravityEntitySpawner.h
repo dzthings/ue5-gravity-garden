@@ -18,6 +18,10 @@ struct FGravitySpawnEntry
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawn", meta = (ClampMin = "1", ClampMax = "20"))
 	int32 Count = 3;
+
+	// Z offset from the spawner's location (cm). Use for floating families (orbitals, flora elevated above ground).
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawn")
+	float SpawnHeight = 0.f;
 };
 
 // Place one of these in the level and configure Entries.

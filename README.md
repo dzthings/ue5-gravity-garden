@@ -65,10 +65,10 @@ The governing question is answered: entities feel alive and distinct. Effort is 
 
 | Work item | Status | Notes |
 |---|---|---|
-| **Floor material** | ⬜ | Dark reflective surface that makes glow pop |
-| **Terrain collision** | ⬜ | Per-node raycast replaces flat-plane ground constraint |
+| **Floor material** | ⬜ User action | Dark reflective surface + subtle grid; instructions in session |
+| **Terrain collision** | ✅ Code ready | Per-node downward raycast in `UGravityWormMovementSolver`; falls back to flat plane if no hit |
 | **Spine improvements** | ⬜ | Taper, smoother curvature, distinctive head shape |
-| **Flora** | ⬜ | Rooted/reactive entities — stalks that sway toward passing worms; same node/link/breath/material system, different solver |
+| **Flora** | ✅ Code ready | `UGravityFloraTopologySolver` (rooted chain, upward) + `UGravityFloraMovementSolver` (springs to rest, bends toward fauna); `UGravityFieldRegistry` world subsystem brokers fauna positions to flora each tick |
 | **Post-process pass** | ⬜ | Bloom, vignette, dark atmosphere |
 | **M5 — Portability** | ⬜ Deferred | Validation pass; plugin into second project |
 | **M6 — Resonance v0** | ⬜ Deferred | Hold-to-resonate, breath/glow sync |
@@ -81,7 +81,7 @@ The governing question is answered: entities feel alive and distinct. Effort is 
 |---|---|---|---|
 | **Worm** | Linear spine | S-curve ground crawl, node repulsion | ✅ Live |
 | **Orbital Cluster** | Fibonacci sphere | Lissajous core drift, tilted per-node orbits | ✅ Live |
-| **Flora (Stalk)** | Anchored chain | Reactive — sways toward nearby entities | ⬜ Planned |
+| **Flora (Stalk)** | Anchored chain, upward | Reactive — springs to rest, bends toward passing fauna via `UGravityFieldRegistry` | ✅ Code ready |
 
 ---
 

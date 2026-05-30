@@ -81,6 +81,9 @@ public:
 
 	void SetInitialHeading(float AngleRadians) { HeadingAngle = AngleRadians; }
 
+	// Provide a world reference for terrain raycasting. Called once at entity init.
+	void SetWorld(UWorld* InWorld) { World = InWorld; }
+
 	void SetSpawnOrigin(FVector WorldOrigin)
 	{
 		SpawnOrigin     = WorldOrigin;
@@ -102,12 +105,13 @@ public:
 	}
 
 private:
-	FVector SpawnOrigin     = FVector::ZeroVector;
-	FVector AttentionTarget = FVector::ZeroVector;
-	float   GroundZ         = 0.f;
-	float   HeadingAngle    = 0.f; // radians in XY, 0 = +X
-	float   TurnTime        = 0.f;
-	bool    bManualTarget   = false;
+	FVector  SpawnOrigin     = FVector::ZeroVector;
+	FVector  AttentionTarget = FVector::ZeroVector;
+	float    GroundZ         = 0.f;
+	float    HeadingAngle    = 0.f;
+	float    TurnTime        = 0.f;
+	bool     bManualTarget   = false;
+	TWeakObjectPtr<UWorld> World;
 
 	void UpdateLocomotionTarget(float DeltaTime);
 	void StepSimulation(TArray<FGravityNode>& Nodes, float Dt);

@@ -9,6 +9,8 @@
 #include "GravityMaterialProfile.h"
 #include "GravityWormMovementSolver.h"
 #include "GravityOrbitalMovementSolver.h"
+#include "GravityFloraMovementSolver.h"
+#include "GravityFieldRegistry.h"
 #include "ProceduralMeshComponent.h"
 #include "DrawDebugHelpers.h"
 #include "HAL/IConsoleManager.h"
@@ -145,6 +147,7 @@ void UGravityEntityComponent::InitializeEntity()
 	if (UGravityWormMovementSolver* WormS = Cast<UGravityWormMovementSolver>(SolverInstance))
 	{
 		WormS->SetSpawnOrigin(Origin);
+		WormS->SetWorld(GetWorld());
 		WormS->RestSpacing = Profile->RestSpacing;
 	}
 	else if (UGravityOrbitalMovementSolver* OrbS = Cast<UGravityOrbitalMovementSolver>(SolverInstance))
@@ -152,9 +155,36 @@ void UGravityEntityComponent::InitializeEntity()
 		OrbS->SetSpawnOrigin(Origin);
 	}
 
+	// Register flora solvers with the world registry so they receive fauna positions
+	if (UGravityFloraMovementSolver* FloraS = Cast<UGravityFloraMovementSolver>(SolverInstance))
+	{
+		if (UWorld* W = GetWorld())
+		{
+			if (UGravityFieldRegistry* Registry = W->GetSubsystem<UGravityFieldRegistry>())
+			{
+				Registry->RegisterFloraReceiver(FloraS);
+			}
+		}
+	}
+
 	DestroyMeshComponents();
 	CreateNodeMeshComponents();
 	CreateLinkMeshComponents();
+}
+
+void UGravityEntityComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (UGravityFloraMovementSolver* FloraS = Cast<UGravityFloraMovementSolver>(SolverInstance))
+	{
+		if (UWorld* W = GetWorld())
+		{
+			if (UGravityFieldRegistry* Registry = W->GetSubsystem<UGravityFieldRegistry>())
+			{
+				Registry->UnregisterFloraReceiver(FloraS);
+			}
+		}
+	}
+	Super::EndPlay(EndPlayReason);
 }
 
 void UGravityEntityComponent::ReinitializeEntity()
@@ -306,6 +336,15 @@ void UGravityEntityComponent::TickComponent(float DeltaTime, ELevelTick TickType
 	if (SolverInstance)
 	{
 		SolverInstance->Solve(Nodes, Links, DeltaTime, StateChannels);
+	}
+
+	// Broadcast node positions to flora via world registry (fauna only — flora doesn't self-broadcast)
+	if (SolverInstance && !SolverInstance->IsA<UGravityFloraMovementSolver>())
+	{
+		if (UGravityFieldRegistry* Registry = GetWorld()->GetSubsystem<UGravityFieldRegistry>())
+		{
+			Registry->BroadcastFaunaPositions(DisplayPositions);
+		}
 	}
 
 	if (BreathInstance)

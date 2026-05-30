@@ -27,6 +27,7 @@ void AGravityEntitySpawner::BeginPlay()
 		for (int32 i = 0; i < Entry.Count; ++i)
 		{
 			FVector SpawnPoint = PickSpawnPoint(Rng, PlacedPoints);
+			SpawnPoint.Z += Entry.SpawnHeight;
 			PlacedPoints.Add(SpawnPoint);
 
 			FActorSpawnParameters Params;
