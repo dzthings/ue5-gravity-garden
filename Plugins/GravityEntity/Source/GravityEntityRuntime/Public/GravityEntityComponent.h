@@ -47,6 +47,14 @@ public:
 	UPROPERTY(EditAnywhere, Category = "GravityEntity|Rendering", meta = (ClampMin = "0.0", ClampMax = "3.14"))
 	float GlowLeadAngle = 0.35f;
 
+	// How much segments shrink toward the tail (0 = uniform, 1 = tail vanishes).
+	UPROPERTY(EditAnywhere, Category = "GravityEntity|Rendering", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float TaperAmount = 0.55f;
+
+	// Scale multiplier for the lead (head) node — makes it visibly larger than the body.
+	UPROPERTY(EditAnywhere, Category = "GravityEntity|Rendering", meta = (ClampMin = "0.5", ClampMax = "3.0"))
+	float HeadScale = 1.4f;
+
 	// Per-entity solver instance (duplicated from profile at init — independent runtime state).
 	UPROPERTY(VisibleAnywhere, Category = "GravityEntity|State")
 	TObjectPtr<UGravityMovementSolver> SolverInstance;

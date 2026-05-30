@@ -405,8 +405,13 @@ void UGravityEntityComponent::UpdateNodeMeshes()
 			Dir = (DisplayPositions[i] - DisplayPositions[i - 1]).GetSafeNormal();
 		if (Dir.IsNearlyZero()) Dir = FVector::UpVector;
 
+		// Head is larger; body tapers toward the tail
+		float Scale = (i == 0)
+			? HeadScale
+			: FMath::Lerp(1.f, 1.f - TaperAmount, (float)i / FMath::Max(Nodes.Num() - 1, 1));
+
 		FQuat Rot = FQuat::FindBetweenNormals(FVector::UpVector, Dir);
-		PMC->SetWorldTransform(FTransform(Rot, DisplayPositions[i]));
+		PMC->SetWorldTransform(FTransform(Rot, DisplayPositions[i], FVector(Scale)));
 
 		float BreathCPD = bHasBreath
 			? 0.5f + 0.5f * FMath::Sin(BreathInstance->GetPhase(i) + GlowLeadAngle)
