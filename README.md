@@ -52,8 +52,8 @@ DECISIONS.md                      # log of non-default architectural choices
 | Milestone | Status | Notes |
 |---|---|---|
 | **Spike 0** — throwaway debug spring chain | ✅ Done — deleted | Motion confirmed in PIE; Spike 0 code removed |
-| **M0** — plugin skeleton + profile asset | ✅ Code ready | Plugin + runtime/editor modules, `UGravityEntityProfile`, all abstract bases, `UGravityStateChannels`; verify: plugin enables, empty profile opens in Details |
-| **M1** — one living Worm spine | ⬜ Not started | Spring-damper motion, authored breath, state channels populated, placeholder geometry |
+| **M0** — plugin skeleton + profile asset | ✅ Done | Plugin enables clean; empty profile opens in Details panel |
+| **M1** — one living Worm spine | ✅ Code ready | `UGravityWormTopologySolver` + `UGravityWormMovementSolver` (spring-damper, attention spring, autonomous circular locomotion); authored breath display offset; state channels (tension/speed/instability); role-colored debug draw with tension-tinted links; CVars `ge.Debug.DrawNodes/Links/LogChannels` |
 | **M2** — variation | ⬜ Not started | Worm + Orbital Cluster from one pawn class, each distinct within 30s |
 | **M3** — live tuning + glow | ⬜ Not started | PostEditChangeProperty rebuild, glow breath on state channel (after M1 motion gate) |
 | **M4** — parametric parts + materials | ⬜ Not started | Geometry Script part kit, ISM/HISM, bounded master materials |

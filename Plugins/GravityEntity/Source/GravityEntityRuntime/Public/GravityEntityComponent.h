@@ -27,18 +27,34 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GravityEntity|State")
 	TObjectPtr<UGravityStateChannels> StateChannels;
 
-	// Runtime node + link arrays (populated by the topology solver at spawn).
+	// Physics node + link arrays (populated by topology solver at spawn).
 	TArray<FGravityNode> Nodes;
 	TArray<FGravityLink> Links;
+
+	// World-space display positions (physics position + breath offset). Used by debug draw and (M4) meshes.
+	TArray<FVector> DisplayPositions;
+
+	// Drive the lead node's attention toward a world-space target.
+	UFUNCTION(BlueprintCallable, Category = "GravityEntity")
+	void SetAttentionTarget(FVector WorldTarget);
+
+	// Rebuild topology + reset simulation state (call after profile change in editor).
+	void ReinitializeEntity();
 
 protected:
 	virtual void BeginPlay() override;
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType,
 	                           FActorComponentTickFunction* ThisTickFunction) override;
 
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+
 private:
 	UPROPERTY()
 	TObjectPtr<UGravityPartCache> PartCache;
 
 	void InitializeEntity();
+	void ComputeDisplayPositions();
+	void DebugDraw() const;
 };
