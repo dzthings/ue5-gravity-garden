@@ -10,11 +10,12 @@ A reusable **Unreal Engine 5.7 C++ plugin** (`GravityEntity`) for procedural gra
 
 Each entity is **nodes + links + solvers + procedural geometry + parameterized materials + idle breath**, all surfaced through a shared **state-channel interface**. Not a mesh. Not a physics ragdoll. The field *is* the nervous system — visual and behavioral.
 
-- Part shapes generated in-engine via **Geometry Script** (no imported meshes)
+- Part shapes generated at runtime via **ProceduralMeshComponent** with hand-computed geometry (sphere, capsule, cylinder) — no imported meshes
 - Motion driven by a **custom C++ spring-damper** (no Chaos/physics sim)
-- Per-node material state via **Custom Primitive Data** (no unique MID per node)
-- Idle life ("breath") is a signal — geometry and glow are both readouts of it
+- Per-node glow driven by **Material Instance Dynamics** (one MID per component) with `GlowValue` parameter set from breath phase + tension each tick
+- Idle life ("breath") is a signal — geometry offset and glow are both readouts of it
 - Every subsystem is *procedural foundation + authored override + a clean signal/param seam*
+- Each entity **duplicates the profile's solver and breath signal** at spawn — independent runtime state per instance from a shared profile asset
 
 ---
 
@@ -25,10 +26,9 @@ GravityEntity/                    # the plugin (never depends on Garden)
   Source/
     GravityEntityRuntime/         # runtime module — actors, solvers, profiles, state channels
     GravityEntityEditor/          # editor-only — detail customizations, validators
-  Content/
-    Profiles/  MasterMaterials/  Niagara/  Debug/
 
 Source/GravityGarden/             # Garden test project (depends on plugin only)
+  GravityEntitySpawner            # place one in the level; spawns N entities at random positions
 Prompts/
   CLAUDE.md                       # agent operating instructions
   PROJECT_BRIEF.md                # full design spec and milestone sequence
@@ -51,35 +51,50 @@ DECISIONS.md                      # log of non-default architectural choices
 
 | Milestone | Status | Notes |
 |---|---|---|
-| **Spike 0** — throwaway debug spring chain | ✅ Done — deleted | Motion confirmed in PIE; Spike 0 code removed |
+| **Spike 0** — throwaway debug spring chain | ✅ Done | Motion confirmed in PIE; deleted |
 | **M0** — plugin skeleton + profile asset | ✅ Done | Plugin enables clean; empty profile opens in Details panel |
-| **M1** — one living Worm spine | ✅ Done | Motion gate passed — spine reads as kinetic/alive. Spring-damper chain, attention spring, autonomous locomotion, traveling breath wave, role-colored debug draw, state channels populated |
-| **M2** — variation | ✅ Code ready | `UGravityOrbitalTopologySolver` (Fibonacci sphere) + `UGravityOrbitalMovementSolver` (Lissajous core drift, per-node tilted orbit axes); place second pawn with `DA_OrbitalProfile` alongside Worm |
-| **M3** — live tuning + glow | ✅ Done | ISM node rendering, CPD-driven glow breath via `M_GravityNode` master material, phase-decoupled glow lead, traveling wave visible on both Worm and Orbital |
-| **M4** — parametric parts + materials | ✅ Done | Capsule segments on Worm, spheres on Orbital, glowing link tubes; `UGravityMaterialProfile` (tension+breath→glow via MID per component); `ProceduralMeshComponent` with hand-computed geometry |
-| **M5** — portability | ⬜ Not started | Plugin drops into a second project with zero Garden deps |
-| **M6** — resonance v0 | ⬜ Not started | Hold-to-resonate, breath/glow sync as the visible payoff |
+| **M1** — one living Worm spine | ✅ Done | Motion gate passed. Spring-damper chain, S-curve ground locomotion, authored breath wave, state channels |
+| **M2** — variation | ✅ Done | Worm + Orbital Cluster; each reads as distinct within 30s |
+| **M3** — glow | ✅ Done | ProceduralMeshComponent node rendering, MID-driven glow breath, traveling wave visible on both families |
+| **M4** — parametric parts + materials | ✅ Done | Capsule segments (Worm), spheres (Orbital), glowing link tubes, `UGravityMaterialProfile` (tension+breath→glow) |
+| **Infra** — spawner + entity independence | ✅ Done | `AGravityEntitySpawner` (profile + count + radius); per-entity `DuplicateObject` solver/breath so all instances are independent; node-node repulsion prevents self-intersection |
 
-> **M1 human gate (cannot be self-certified):** with placeholder geometry and *no glow*, the spine must read as alive through motion + authored breath alone. Glow and materials enter only after this gate passes.
+### Current focus — Demo Garden
+
+The governing question is answered: entities feel alive and distinct. Effort is now on making the garden compelling enough to share as a concept.
+
+| Work item | Status | Notes |
+|---|---|---|
+| **Floor material** | ⬜ | Dark reflective surface that makes glow pop |
+| **Terrain collision** | ⬜ | Per-node raycast replaces flat-plane ground constraint |
+| **Spine improvements** | ⬜ | Taper, smoother curvature, distinctive head shape |
+| **Flora** | ⬜ | Rooted/reactive entities — stalks that sway toward passing worms; same node/link/breath/material system, different solver |
+| **Post-process pass** | ⬜ | Bloom, vignette, dark atmosphere |
+| **M5 — Portability** | ⬜ Deferred | Validation pass; plugin into second project |
+| **M6 — Resonance v0** | ⬜ Deferred | Hold-to-resonate, breath/glow sync |
+
+---
+
+## Entity families
+
+| Family | Topology | Locomotion | Status |
+|---|---|---|---|
+| **Worm** | Linear spine | S-curve ground crawl, node repulsion | ✅ Live |
+| **Orbital Cluster** | Fibonacci sphere | Lissajous core drift, tilted per-node orbits | ✅ Live |
+| **Flora (Stalk)** | Anchored chain | Reactive — sways toward nearby entities | ⬜ Planned |
 
 ---
 
 ## Stack
 
 - **Engine:** Unreal Engine 5.7
-- **Language:** C++ (runtime); Blueprint for thin glue/test wiring only
-- **Geometry:** Geometry Script (generated in-engine, never per-frame)
-- **Materials:** hand-authored master materials + MIDs + Custom Primitive Data
-- **Effects:** Niagara (field links, motion trails)
-- **Platform:** Windows PC, single-player
+- **Language:** C++ (runtime); Blueprint for thin glue only
+- **Geometry:** `UProceduralMeshComponent` with hand-computed primitives (sphere, capsule, cylinder)
+- **Materials:** hand-authored `M_GravityNode` master material + `UMaterialInstanceDynamic` per component; `GlowValue` scalar parameter driven from state channels
+- **Platform:** Windows PC, single-player / observer
 
 ---
 
 ## Development model
 
-This is a **human-in-the-loop** project. The agent writes C++ and ships instrumentation (debug draw, cvars, Details-panel sliders, test maps). The developer builds in Visual Studio / Rider and judges motion/feel in PIE. The agent cannot run the editor or self-certify visual results.
-
-CLI build (if needed — confirm engine path first):
-```
-{UE_ENGINE_PATH}/Engine/Build/BatchFiles/Build.bat GravityGardenEditor Win64 Development "{PROJECT_ROOT}/GravityGarden.uproject"
-```
+Human-in-the-loop. The agent writes C++ and ships instrumentation (debug draw, cvars, Details-panel sliders). The developer builds in **JetBrains Rider** and judges motion/feel in Simulate mode. The agent cannot run the editor or self-certify visual results.

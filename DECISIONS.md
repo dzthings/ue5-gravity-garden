@@ -23,6 +23,46 @@ Decision: locomotion style lives on the movement solver, not in shared infrastru
 
 Current `bGroundConstrained` clamps nodes to a fixed `GroundZ` (set from spawn height). Nodes pass through actual level meshes. Known limitation, intentionally deferred — motion identity is being validated on flat ground first.
 
-Fix when needed: per-node downward raycast in `StepSimulation`, use hit Z as floor instead of fixed `GroundZ`. ~One raycast per node per sub-step, acceptable cost for 8–12 nodes. Target milestone: M5 or when non-flat terrain testing begins.
+Fix when needed: per-node downward raycast in `StepSimulation`, use hit Z as floor instead of fixed `GroundZ`. ~One raycast per node per sub-step, acceptable cost for 8–12 nodes. Target: demo garden phase.
+
+---
+
+## 2026-05-30 · Geometry · ProceduralMeshComponent instead of Geometry Script
+
+The brief specifies Geometry Script for procedural part generation. `GeometryScript` module was not resolvable via UBT in this UE5.7 install (plugin module lookup failure). Switched to `UProceduralMeshComponent` with hand-computed vertex/triangle/normal arrays for sphere, capsule, and cylinder primitives.
+
+`ProceduralMeshComponent` is a standard engine module, definitely runtime-safe, no plugin dependencies. The geometry is identical in result. Can be migrated to Geometry Script / `UDynamicMeshComponent` later if needed for more complex forms.
+
+---
+
+## 2026-05-30 · Materials · MID per component instead of CustomPrimitiveData
+
+The brief specifies per-node state via Custom Primitive Data (no unique MID per node). In M3–M4, the `PerInstanceCustomData` ISM node was unavailable in the material editor search, and the `CustomPrimitiveData` node was similarly unreliable. Switched to one `UMaterialInstanceDynamic` per `UProceduralMeshComponent`, setting `GlowValue` scalar parameter each tick.
+
+For the entity count in this project (~20–30 components per scene), MID overhead is negligible. The brief's constraint was primarily about ISM at scale (thousands of instances). Revisit if performance becomes a concern.
+
+---
+
+## 2026-05-30 · Architecture · Per-entity solver instancing via DuplicateObject
+
+Initially, all entities using the same `UGravityEntityProfile` shared one solver UObject. The solver stores runtime state (heading angle, attention target, locomotion time) on the UObject, so all instances drove to the same position.
+
+Fix: `UGravityEntityComponent::InitializeEntity` calls `DuplicateObject<UGravityMovementSolver>` and `DuplicateObject<UGravityBreathSignal>` from the profile, storing per-component `SolverInstance` and `BreathInstance`. The profile is config-only; the component owns all live state.
+
+---
+
+## 2026-05-30 · Scope · Demo-garden focus replaces M5/M6 as next priority
+
+After M4, the governing question (do entities feel alive and distinct?) is answered. Rather than proceeding to portability (M5) or resonance (M6), effort shifts to making the garden compelling enough to share as a concept demo: floor material, terrain collision, spine improvements, and a new **Flora** family (rooted/reactive entities using the same node/link/breath/material system with a different solver).
+
+M5 and M6 remain on the roadmap but are deferred until the demo is presentable.
+
+---
+
+## 2026-05-30 · New family · Flora — rooted reactive entities
+
+Flora are field-beings that don't locomote — they respond. Rooted base node, chain extending upward, nodes displaced by proximity fields from passing fauna. Same plugin architecture (topology solver, movement solver, breath signal, material profile) with different solver behavior.
+
+Planned: `UGravityAnchoredTopologySolver` (root pinned, chain upward), `UGravityReactiveMovementSolver` (spring toward rest, displaced by nearby entity nodes). Flora adds a third environmental layer (ground: worms, air: orbitals, vertical: stalks) and creates spatial memory — you can see where entities have been by the settling of flora.
 
 ---
