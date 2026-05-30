@@ -35,8 +35,8 @@ void UGravitySpherePart::GenerateMeshData(TArray<FVector>& OutVerts, TArray<int3
 		{
 			int32 A = i * (Lon + 1) + j;
 			int32 B = A + Lon + 1;
-			OutTris.Add(A);   OutTris.Add(B);   OutTris.Add(A + 1);
-			OutTris.Add(B);   OutTris.Add(B + 1); OutTris.Add(A + 1);
+			OutTris.Add(A);   OutTris.Add(A + 1); OutTris.Add(B);
+			OutTris.Add(B);   OutTris.Add(A + 1); OutTris.Add(B + 1);
 		}
 	}
 }

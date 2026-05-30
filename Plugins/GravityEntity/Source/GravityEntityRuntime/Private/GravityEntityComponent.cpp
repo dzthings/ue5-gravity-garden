@@ -49,13 +49,13 @@ static void BuildUnitCylinder(int32 RadialSeg,
 		}
 	}
 
-	// Side triangles
+	// Side triangles — clockwise winding (UE front face)
 	for (int32 j = 0; j < RadialSeg; ++j)
 	{
 		int32 A = j;
 		int32 B = j + RadialSeg + 1;
-		Tris.Add(A);     Tris.Add(B);     Tris.Add(A + 1);
-		Tris.Add(B);     Tris.Add(B + 1); Tris.Add(A + 1);
+		Tris.Add(A);     Tris.Add(A + 1); Tris.Add(B);
+		Tris.Add(B);     Tris.Add(A + 1); Tris.Add(B + 1);
 	}
 
 	// Top cap
@@ -63,7 +63,7 @@ static void BuildUnitCylinder(int32 RadialSeg,
 	Verts.Add(FVector(0, 0, 0.5f)); Normals.Add(FVector::UpVector); UVs.Add(FVector2D(0.5f, 0.f));
 	for (int32 j = 0; j < RadialSeg; ++j)
 	{
-		Tris.Add(TopCentre); Tris.Add(j + 1); Tris.Add(j);
+		Tris.Add(TopCentre); Tris.Add(j); Tris.Add(j + 1);
 	}
 
 	// Bottom cap
@@ -72,7 +72,7 @@ static void BuildUnitCylinder(int32 RadialSeg,
 	Verts.Add(FVector(0, 0, -0.5f)); Normals.Add(-FVector::UpVector); UVs.Add(FVector2D(0.5f, 1.f));
 	for (int32 j = 0; j < RadialSeg; ++j)
 	{
-		Tris.Add(BotCentre); Tris.Add(BotRing + j); Tris.Add(BotRing + j + 1);
+		Tris.Add(BotCentre); Tris.Add(BotRing + j + 1); Tris.Add(BotRing + j);
 	}
 }
 
