@@ -10,3 +10,11 @@
 The Unreal project was already scaffolded with the module name `GravityGarden`. The brief uses `GravityEntityGarden` as the project name but the actual `.uproject` and source module are `GravityGarden`. Keeping as-is — renaming would require regenerating project files and is purely cosmetic.
 
 ---
+
+## 2026-05-30 · Locomotion · Ground locomotion is entity behavior, not game design
+
+The brief's "compression/release locomotion" and "movement is the primary identity axis" were initially implemented as a mid-air circular attention target (placeholder). User correctly identified that a worm crawling on a surface is a core identity behavior, not a game feature.
+
+Decision: locomotion style lives on the movement solver, not in shared infrastructure. `UGravityWormMovementSolver` constrains nodes to a ground plane and walks the attention target along the surface. Floating entities (`UGravityOrbitalMovementSolver`) have no ground constraint — they own their own locomotion model. Each future family declares its own.
+
+---

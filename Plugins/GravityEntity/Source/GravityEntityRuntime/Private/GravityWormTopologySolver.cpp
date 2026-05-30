@@ -17,7 +17,7 @@ void UGravityWormTopologySolver::BuildTopology(TArray<FGravityNode>& OutNodes, T
 	{
 		FGravityNode Node;
 		Node.NodeID   = i;
-		Node.Position = FVector(0.f, 0.f, -i * Spacing); // hang downward; offset by actor in component
+		Node.Position = FVector(-i * Spacing, 0.f, 0.f); // lie along -X at ground level; offset by actor in component
 		Node.TargetPosition = Node.Position;
 
 		if      (i == 0)         Node.Role = EGravityNodeRole::Lead;
