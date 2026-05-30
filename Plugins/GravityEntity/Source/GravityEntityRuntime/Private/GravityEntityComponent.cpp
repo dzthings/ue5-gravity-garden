@@ -182,8 +182,10 @@ void UGravityEntityComponent::DestroyMeshComponents()
 {
 	for (auto& C : NodeMeshComponents) { if (C) C->DestroyComponent(); }
 	NodeMeshComponents.Reset();
+	NodeMIDs.Reset();
 	for (auto& C : LinkMeshComponents) { if (C) C->DestroyComponent(); }
 	LinkMeshComponents.Reset();
+	LinkMIDs.Reset();
 }
 
 void UGravityEntityComponent::CreateNodeMeshComponents()
@@ -237,6 +239,12 @@ void UGravityEntityComponent::CreateNodeMeshComponents()
 
 		PMC->CreateMeshSection_LinearColor(0, V, T, N, UV, {}, {}, false);
 		NodeMeshComponents.Add(PMC);
+
+		UMaterialInstanceDynamic* MID = NodeMaterial
+			? UMaterialInstanceDynamic::Create(NodeMaterial, PMC)
+			: nullptr;
+		if (MID) PMC->SetMaterial(0, MID);
+		NodeMIDs.Add(MID);
 	}
 }
 
@@ -255,6 +263,12 @@ void UGravityEntityComponent::CreateLinkMeshComponents()
 		UProceduralMeshComponent* PMC = SpawnPMC(Owner, Mat);
 		PMC->CreateMeshSection_LinearColor(0, V, T, N, UV, {}, {}, false);
 		LinkMeshComponents.Add(PMC);
+
+		UMaterialInstanceDynamic* MID = Mat
+			? UMaterialInstanceDynamic::Create(Mat, PMC)
+			: nullptr;
+		if (MID) PMC->SetMaterial(0, MID);
+		LinkMIDs.Add(MID);
 	}
 }
 
@@ -337,7 +351,10 @@ void UGravityEntityComponent::UpdateNodeMeshes()
 		float Glow = bHasMaterial
 			? Profile->MaterialProfile->ComputeNodeGlow(BreathCPD, Nodes[i].Tension)
 			: BreathCPD;
-		PMC->SetCustomPrimitiveDataFloat(0, Glow);
+		if (NodeMIDs.IsValidIndex(i) && NodeMIDs[i])
+		{
+			NodeMIDs[i]->SetScalarParameterValue(TEXT("GlowValue"), Glow);
+		}
 	}
 
 	// Link tube transforms + glow
@@ -362,10 +379,13 @@ void UGravityEntityComponent::UpdateNodeMeshes()
 		PMC->SetWorldTransform(FTransform(Rot, Mid, FVector(LinkTubeRadius, LinkTubeRadius, Len)));
 
 		float Stretch = FMath::Abs(Len - Profile->RestSpacing) / FMath::Max(Profile->RestSpacing, 1.f);
-		float Glow    = bHasMaterial
+		float Glow = bHasMaterial
 			? Profile->MaterialProfile->ComputeLinkGlow(Stretch)
 			: FMath::Clamp(0.2f + Stretch * 2.f, 0.f, 1.f);
-		PMC->SetCustomPrimitiveDataFloat(0, Glow);
+		if (LinkMIDs.IsValidIndex(i) && LinkMIDs[i])
+		{
+			LinkMIDs[i]->SetScalarParameterValue(TEXT("GlowValue"), Glow);
+		}
 	}
 }
 

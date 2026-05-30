@@ -76,6 +76,12 @@ private:
 	UPROPERTY()
 	TArray<TObjectPtr<UProceduralMeshComponent>> LinkMeshComponents;
 
+	UPROPERTY()
+	TArray<TObjectPtr<UMaterialInstanceDynamic>> NodeMIDs;
+
+	UPROPERTY()
+	TArray<TObjectPtr<UMaterialInstanceDynamic>> LinkMIDs;
+
 	void InitializeEntity();
 	void DestroyMeshComponents();
 	void CreateNodeMeshComponents();
