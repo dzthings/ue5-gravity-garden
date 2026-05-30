@@ -12,6 +12,10 @@
 	],
 	"Plugins": [
 		{
+			"Name": "GravityEntity",
+			"Enabled": true
+		},
+		{
 			"Name": "ModelingToolsEditorMode",
 			"Enabled": true,
 			"TargetAllowList": [

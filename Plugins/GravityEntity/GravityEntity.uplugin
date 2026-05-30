@@ -1,0 +1,22 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "0.1.0",
+	"FriendlyName": "Gravity Entity",
+	"Description": "Procedural substrate for gravity/magnetic field-beings.",
+	"Category": "Experimental",
+	"CreatedBy": "dzthings",
+	"CanContainContent": true,
+	"Modules": [
+		{
+			"Name": "GravityEntityRuntime",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "GravityEntityEditor",
+			"Type": "Editor",
+			"LoadingPhase": "PostEngineInit"
+		}
+	]
+}
