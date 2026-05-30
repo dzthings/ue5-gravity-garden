@@ -1,0 +1,52 @@
+# ============================================================
+# Unreal Engine 5 — generated / local / transient
+# ============================================================
+Binaries/
+Build/
+DerivedDataCache/
+Intermediate/
+Saved/
+
+# Generated project files
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+.vs/
+.vsconfig
+
+# Plugin binaries (each dev builds locally)
+Plugins/*/Binaries/
+Plugins/*/Intermediate/
+
+# ============================================================
+# Unreal content — keep source assets, skip auto-generated
+# ============================================================
+# Uncomment if you do NOT want to track .uasset/.umap in git
+# (use Perforce or Git LFS for large binary asset repos instead)
+# *.uasset
+# *.umap
+
+# Auto-generated
+FeaturePack/
+Templates/
+
+# ============================================================
+# OS / editor noise
+# ============================================================
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.suo
+*.user
+*.log
+
+# JetBrains Rider
+.idea/
+*.DotSettings.user
+
+# ============================================================
+# Optional: uncomment to ignore content / config if desired
+# ============================================================
+# Content/
+# Config/
