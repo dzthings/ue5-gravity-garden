@@ -50,7 +50,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "GravityEntity")
 	void SetAttentionTarget(FVector WorldTarget);
 
+	// Full reinit including mesh components — call only at BeginPlay or from game code.
 	void ReinitializeEntity();
+
+	// Logical-only rebuild: resets solver + topology without touching UObject creation.
+	// Safe to call from PostEditChangeProperty.
+	void RebuildLogicOnly();
 
 protected:
 	virtual void BeginPlay() override;

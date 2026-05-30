@@ -153,6 +153,31 @@ void UGravityEntityComponent::ReinitializeEntity()
 	InitializeEntity();
 }
 
+void UGravityEntityComponent::RebuildLogicOnly()
+{
+	if (!Profile) return;
+
+	Nodes.Reset();
+	Links.Reset();
+	DisplayPositions.Reset();
+
+	if (StateChannels) StateChannels->Reset();
+	if (Profile->MovementSolver) Profile->MovementSolver->Reset();
+
+	if (Profile->TopologySolver)
+	{
+		Profile->TopologySolver->BuildTopology(Nodes, Links, Profile);
+		const FVector Origin = GetOwner() ? GetOwner()->GetActorLocation() : FVector::ZeroVector;
+		for (FGravityNode& Node : Nodes)
+		{
+			Node.Position       += Origin;
+			Node.TargetPosition += Origin;
+		}
+	}
+
+	DisplayPositions.SetNum(Nodes.Num());
+}
+
 void UGravityEntityComponent::DestroyMeshComponents()
 {
 	for (auto& C : NodeMeshComponents) { if (C) C->DestroyComponent(); }
@@ -373,13 +398,17 @@ void UGravityEntityComponent::PostEditChangeProperty(FPropertyChangedEvent& Prop
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
+	// Rebuild logical state only — never create/destroy UObjects from here.
+	// ProceduralMeshComponents are created at BeginPlay (game world).
+	// Creating UObjects during PostEditChangeProperty crashes because the
+	// editor may be iterating the UObject hash table at call time.
 	const FName Prop = PropertyChangedEvent.GetPropertyName();
 	if (Prop == GET_MEMBER_NAME_CHECKED(UGravityEntityComponent, Profile)     ||
 	    Prop == GET_MEMBER_NAME_CHECKED(UGravityEntityComponent, NodeMaterial) ||
 	    Prop == GET_MEMBER_NAME_CHECKED(UGravityEntityComponent, LinkMaterial) ||
 	    Prop == GET_MEMBER_NAME_CHECKED(UGravityEntityComponent, LinkTubeRadius))
 	{
-		ReinitializeEntity();
+		RebuildLogicOnly();
 	}
 }
 #endif
