@@ -44,6 +44,7 @@ void AGravityEntitySpawner::BeginPlay()
 				GEC->Profile      = Entry.Profile;
 				GEC->NodeMaterial = EntityMaterial;
 				GEC->LinkMaterial = EntityMaterial;
+				GEC->ReinitializeEntity(); // BeginPlay already fired with null profile — rebuild now
 			}
 		}
 	}
