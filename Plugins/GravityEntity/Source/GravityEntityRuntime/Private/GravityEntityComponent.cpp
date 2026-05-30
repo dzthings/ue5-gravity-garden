@@ -65,7 +65,11 @@ void UGravityEntityComponent::InitializeEntity()
 	Nodes.Reset();
 	Links.Reset();
 	DisplayPositions.Reset();
-	StateChannels->Reset();
+
+	if (StateChannels)
+	{
+		StateChannels->Reset();
+	}
 
 	if (Profile->TopologySolver)
 	{
@@ -92,7 +96,15 @@ void UGravityEntityComponent::InitializeEntity()
 
 void UGravityEntityComponent::ReinitializeEntity()
 {
-	if (StateChannels) StateChannels->Reset();
+	// Called from PostEditChangeProperty (editor, pre-BeginPlay) — create objects if not yet initialized.
+	if (!StateChannels)
+	{
+		StateChannels = NewObject<UGravityStateChannels>(this);
+	}
+	if (!PartCache)
+	{
+		PartCache = NewObject<UGravityPartCache>(this);
+	}
 	InitializeEntity();
 }
 
