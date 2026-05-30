@@ -19,11 +19,9 @@ Decision: locomotion style lives on the movement solver, not in shared infrastru
 
 ---
 
-## 2026-05-30 · Collision · Ground constraint is flat-plane only — terrain collision deferred
+## 2026-05-30 · Collision · Ground constraint uses per-node terrain raycast
 
-Current `bGroundConstrained` clamps nodes to a fixed `GroundZ` (set from spawn height). Nodes pass through actual level meshes. Known limitation, intentionally deferred — motion identity is being validated on flat ground first.
-
-Fix when needed: per-node downward raycast in `StepSimulation`, use hit Z as floor instead of fixed `GroundZ`. ~One raycast per node per sub-step, acceptable cost for 8–12 nodes. Target: demo garden phase.
+`UGravityWormMovementSolver` now does a downward `LineTraceSingleByChannel` (ECC_WorldStatic) per node per sub-step. Hit Z is used as the floor; falls back to the flat `GroundZ` plane if no hit. `SetWorld()` is called at entity init so the solver has a valid world reference. Floor plane requires collision enabled — `Engine/BasicShapes/Plane` has no collision by default and must be replaced or have collision added manually.
 
 ---
 
@@ -59,10 +57,13 @@ M5 and M6 remain on the roadmap but are deferred until the demo is presentable.
 
 ---
 
-## 2026-05-30 · New family · Flora — rooted reactive entities
+## 2026-05-30 · New family · Flora — rooted reactive entities (implemented)
 
-Flora are field-beings that don't locomote — they respond. Rooted base node, chain extending upward, nodes displaced by proximity fields from passing fauna. Same plugin architecture (topology solver, movement solver, breath signal, material profile) with different solver behavior.
+Flora are field-beings that don't locomote — they respond. Implemented via:
+- `UGravityFloraTopologySolver`: rooted vertical chain; node 0 anchored, nodes extend upward with seeded lean per stalk
+- `UGravityFloraMovementSolver`: node 0 pinned each tick; upper nodes spring toward rest positions with tip-weighted flexibility; attracted toward registered fauna node positions with configurable radius and falloff
+- `UGravityFieldRegistry` (`UTickableWorldSubsystem`): fauna GEC broadcasts display positions each tick; flora solvers register at init and receive positions via `SetNearbyEntityPositions`; cleaned up via `EndPlay` unregister
 
-Planned: `UGravityAnchoredTopologySolver` (root pinned, chain upward), `UGravityReactiveMovementSolver` (spring toward rest, displaced by nearby entity nodes). Flora adds a third environmental layer (ground: worms, air: orbitals, vertical: stalks) and creates spatial memory — you can see where entities have been by the settling of flora.
+Adds a third environmental layer (ground: worms, air: orbitals, vertical: stalks) and creates spatial memory — stalks settle slowly after a worm passes, making its path readable.
 
 ---

@@ -65,11 +65,11 @@ The governing question is answered: entities feel alive and distinct. Effort is 
 
 | Work item | Status | Notes |
 |---|---|---|
-| **Floor material** | ⬜ User action | Dark reflective surface + subtle grid; instructions in session |
-| **Terrain collision** | ✅ Code ready | Per-node downward raycast in `UGravityWormMovementSolver`; falls back to flat plane if no hit |
-| **Spine improvements** | ⬜ | Taper, smoother curvature, distinctive head shape |
-| **Flora** | ✅ Code ready | `UGravityFloraTopologySolver` (rooted chain, upward) + `UGravityFloraMovementSolver` (springs to rest, bends toward fauna); `UGravityFieldRegistry` world subsystem brokers fauna positions to flora each tick |
-| **Post-process pass** | ⬜ | Bloom, vignette, dark atmosphere |
+| **Floor material** | ✅ Done | Dark metallic `M_Floor` authored in editor |
+| **Terrain collision** | ✅ Done | Per-node downward raycast in `UGravityWormMovementSolver`; falls back to flat plane if no hit |
+| **Spine improvements** | ✅ Done | Taper (segments shrink toward tail) + `HeadScale` (lead node larger); head shape via `GravitySpherePart` in profile |
+| **Flora** | ✅ Done | `UGravityFloraTopologySolver` + `UGravityFloraMovementSolver` + `UGravityFieldRegistry` world subsystem; stalks sway toward passing fauna |
+| **Post-process pass** | ⬜ | Bloom, vignette, dark atmosphere — user-authored PostProcessVolume |
 | **M5 — Portability** | ⬜ Deferred | Validation pass; plugin into second project |
 | **M6 — Resonance v0** | ⬜ Deferred | Hold-to-resonate, breath/glow sync |
 
