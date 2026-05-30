@@ -8,7 +8,10 @@ public class GravityEntityRuntime : ModuleRules
 
 		PublicDependencyModuleNames.AddRange(new string[]
 		{
-			"Core", "CoreUObject", "Engine"
+			"Core", "CoreUObject", "Engine",
+			"GeometryCore",       // FDynamicMesh3 and core math types
+			"GeometryFramework",  // UDynamicMesh, UDynamicMeshComponent
+			"GeometryScript",     // UGeometryScriptLibrary_* primitive generators
 		});
 	}
 }

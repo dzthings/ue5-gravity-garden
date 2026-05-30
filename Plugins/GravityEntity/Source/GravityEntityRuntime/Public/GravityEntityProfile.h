@@ -2,15 +2,18 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "GravityEntityTypes.h"
 #include "GravityEntityProfile.generated.h"
 
 class UGravityTopologySolver;
 class UGravityMovementSolver;
 class UGravityPartGenerator;
 class UGravityBreathSignal;
+class UGravityMaterialProfile;
 
 // The variant asset — source of truth for one creature type.
-// All solvers, generators, and breath config are Instanced UObjects edited inline in the Details panel.
+// All solvers, generators, and breath/material config are Instanced UObjects
+// edited inline in the Details panel.
 UCLASS(BlueprintType)
 class GRAVITYENTITYRUNTIME_API UGravityEntityProfile : public UPrimaryDataAsset
 {
@@ -25,10 +28,14 @@ public:
 	UPROPERTY(EditAnywhere, Instanced, Category = "Movement")
 	TObjectPtr<UGravityMovementSolver> MovementSolver;
 
-	// --- Parts (M4) ---
-	// Part generators keyed by role — generate once, cache by param hash, instance via ISM/HISM.
+	// --- Parts ---
+	// Each generator declares which roles it handles. FindGeneratorForRole() resolves at runtime.
 	UPROPERTY(EditAnywhere, Instanced, Category = "Parts")
 	TArray<TObjectPtr<UGravityPartGenerator>> PartGenerators;
+
+	// --- Material ---
+	UPROPERTY(EditAnywhere, Instanced, Category = "Material")
+	TObjectPtr<UGravityMaterialProfile> MaterialProfile;
 
 	// --- Breath ---
 	UPROPERTY(EditAnywhere, Instanced, Category = "Breath")
@@ -50,7 +57,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Physics", meta = (ClampMin = "0.1", ClampMax = "10.0"))
 	float NodeSize = 1.f;
 
-	// --- Identity ---
+	// Returns the first part generator that handles this role, or nullptr.
+	UGravityPartGenerator* FindGeneratorForRole(EGravityNodeRole Role) const;
+
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override
 	{
 		return FPrimaryAssetId(TEXT("GravityEntityProfile"), GetFName());

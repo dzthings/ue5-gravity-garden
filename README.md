@@ -56,7 +56,7 @@ DECISIONS.md                      # log of non-default architectural choices
 | **M1** — one living Worm spine | ✅ Done | Motion gate passed — spine reads as kinetic/alive. Spring-damper chain, attention spring, autonomous locomotion, traveling breath wave, role-colored debug draw, state channels populated |
 | **M2** — variation | ✅ Code ready | `UGravityOrbitalTopologySolver` (Fibonacci sphere) + `UGravityOrbitalMovementSolver` (Lissajous core drift, per-node tilted orbit axes); place second pawn with `DA_OrbitalProfile` alongside Worm |
 | **M3** — live tuning + glow | ✅ Done | ISM node rendering, CPD-driven glow breath via `M_GravityNode` master material, phase-decoupled glow lead, traveling wave visible on both Worm and Orbital |
-| **M4** — parametric parts + materials | ⬜ Not started | Geometry Script part kit, ISM/HISM, bounded master materials |
+| **M4** — parametric parts + materials | ✅ Code ready | `UGravitySpineSegmentPart` (capsule) + `UGravitySpherePart` via Geometry Script; `UDynamicMeshComponent` per node + link tube; `UGravityMaterialProfile` (tension+breath→glow); `CustomPrimitiveData[0]` per primitive |
 | **M5** — portability | ⬜ Not started | Plugin drops into a second project with zero Garden deps |
 | **M6** — resonance v0 | ⬜ Not started | Hold-to-resonate, breath/glow sync as the visible payoff |
 
